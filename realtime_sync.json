@@ -1,0 +1,161 @@
+{
+    "name": "Real-time Sync (EvolutionAPI Webhook)",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "evolution-webhook",
+                "options": {}
+            },
+            "id": "webhook",
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                460,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "dataType": "string",
+                "value1": "={{ $json.body.type }}",
+                "rules": {
+                    "rules": [
+                        {
+                            "value2": "MESSAGES_UPSERT"
+                        },
+                        {
+                            "value2": "SEND_MESSAGE"
+                        },
+                        {
+                            "value2": "CONTACTS_UPSERT"
+                        }
+                    ]
+                }
+            },
+            "id": "switch-event",
+            "name": "Switch Event",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 1,
+            "position": [
+                680,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.SUPABASE_URL }}/rest/v1/messages",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ [{\n  \"message_id\": $json.body.data.key.id,\n  \"chat_id\": $json.body.data.key.remoteJid,\n  \"content\": $json.body.data.message.conversation || $json.body.data.message.extendedTextMessage.text,\n  \"from_me\": $json.body.data.key.fromMe,\n  \"timestamp_msg\": new Date($json.body.data.messageTimestamp * 1000).toISOString(),\n  \"status\": $json.body.data.status\n}] }}",
+                "options": {},
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Prefer",
+                            "value": "resolution=merge-duplicates"
+                        },
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer {{ $env.SUPABASE_SERVICE_KEY }}"
+                        }
+                    ]
+                }
+            },
+            "id": "upsert-message",
+            "name": "Upsert Message",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                900,
+                200
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "supabase-service-key",
+                    "name": "Supabase Service Key"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.SUPABASE_URL }}/rest/v1/contacts",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ [{\n  \"name\": $json.body.data.name || $json.body.data.pushName,\n  \"phone\": $json.body.data.id.split('@')[0],\n  \"image\": $json.body.data.profilePictureUrl,\n  \"instance_id\": $json.body.instanceId\n}] }}",
+                "options": {},
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Prefer",
+                            "value": "resolution=merge-duplicates"
+                        },
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer {{ $env.SUPABASE_SERVICE_KEY }}"
+                        }
+                    ]
+                }
+            },
+            "id": "upsert-contact",
+            "name": "Upsert Contact",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                900,
+                400
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "supabase-service-key",
+                    "name": "Supabase Service Key"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Switch Event",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Switch Event": {
+            "main": [
+                [
+                    {
+                        "node": "Upsert Message",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Upsert Message",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Upsert Contact",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

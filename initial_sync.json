@@ -1,0 +1,643 @@
+{
+  "name": "Initial Sync (EvolutionAPI -> Supabase)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "d71c5676-dca1-445c-8520-f757cc55d341",
+      "name": "When clicking \"Execute Workflow\"",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -3344,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/instances?select=id,name",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "905b7410-2d66-4827-a2b0-59a8f430b91c",
+      "name": "Get Instances",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -3120,
+        128
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CWBY9me7mGfNfhh5",
+          "name": "Header Auth account"
+        },
+        "supabaseApi": {
+          "id": "zuQ9RKLERDxelcJf",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "f960dac4-3af2-4c0c-b30b-b9b26d063d8a",
+      "name": "Split Instances",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -2896,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/chat/findContacts/{{ $json.name }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "19ef0ccd-7064-4e71-88e4-c35b883e7024",
+      "name": "Get Contacts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -2672,
+        32
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CWBY9me7mGfNfhh5",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.EVOLUTION_API_URL }}/group/fetchAllGroups/{{ $json.name }}?getParticipants=false",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "43be5cd9-25b0-40cd-af4b-6e6e1874bde5",
+      "name": "Get Groups",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -2672,
+        240
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CWBY9me7mGfNfhh5",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "instance_id",
+              "value": "={{ $('Split Instances').item.json.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "addea287-0a1c-43d0-80d2-4418256de54b",
+      "name": "Add Instance ID Contacts",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        -2576,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "instance_id",
+              "value": "={{ $('Split Instances').item.json.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "598db646-6acb-49de-9935-dc911f3de0c1",
+      "name": "Add Instance ID Groups",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        -2576,
+        240
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "fb286631-6c11-4243-99a6-6ced06b7042a",
+      "name": "Merge Contacts & Groups",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        -2464,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Use $input.all() to get all items from the Merge node (Append mode)\nconst items = $input.all();\n\nif (items.length === 0) return [];\n\n// Extract instanceId from the first item. \n// Prioritize 'instance_id' (injected Supabase ID) over 'instanceId' (Evolution ID).\nlet instanceId = items[0].json.instance_id;\n\n// Fallback: Try to get it directly from Split Instances node if missing in items\nif (!instanceId) {\n    try {\n        instanceId = $('Split Instances').first().json.id;\n    } catch (e) {\n        // ignore\n    }\n}\n\nif (!instanceId) {\n    throw new Error(`Instance ID is missing! Value: ${instanceId}, keys: ${Object.keys(items[0].json).join(', ')}`);\n}\n\nconst contactsMap = {};\n\nfunction getPhone(id) {\n    if (!id) return null;\n    return id.split('@')[0];\n}\n\nitems.forEach((itemObj, index) => {\n    const item = itemObj.json;\n    const id = item.remoteJid || item.id || item.jid;\n    const phone = getPhone(id);\n    if (!phone) return;\n\n    const isGroup = item.type === 'group' || item.isGroup === true || (id && id.includes('@g.us'));\n    const pic = item.profilePicUrl || item.profilePictureUrl || null;\n    \n    // Determine name properties\n    // Groups usually have 'subject'. Contacts have 'name', 'pushName', 'notify'.\n    const name = item.subject || item.name || item.pushName || item.notify || phone;\n    const pushName = item.pushName || item.notify || item.subject;\n\n    if (!contactsMap[phone]) {\n        contactsMap[phone] = {\n            json: {\n                phone: phone,\n                name: name,\n                push_name: pushName,\n                profile_pic_url: pic,\n                is_group: isGroup,\n                group_metadata: isGroup ? item : null,\n                instance_id: instanceId\n            },\n            // Pair with the current input item to preserve lineage as much as possible,\n            // or pair with the first item [0] if we want to treat them all as children of the batch.\n            // Since we are aggregating, pairing with 0 is safer for the 'Split Instances' reference.\n            pairedItem: { item: 0 }\n        };\n    } else {\n        const existing = contactsMap[phone].json;\n        \n        // Update profile pic if new one is present\n        if (pic) existing.profile_pic_url = pic;\n        \n        // Update name if we found a better one (e.g. not just the phone number)\n        if (name && name !== phone) existing.name = name;\n        \n        // If it's a group, ensure is_group is true and update metadata if this item looks like it has more info (e.g. subject)\n        if (isGroup) {\n            existing.is_group = true;\n            if (item.subject || item.participants) {\n                existing.group_metadata = item;\n            }\n        }\n    }\n});\n\nreturn Object.values(contactsMap);"
+      },
+      "id": "b7b1c1e5-7d3d-4962-a321-fa40a47e8337",
+      "name": "Normalize Contacts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2240,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/contacts?on_conflict=phone,instance_id",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "72a03085-cfa8-4d0a-8e14-3fad62c51bd2",
+      "name": "Upsert Contacts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -2016,
+        128
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CWBY9me7mGfNfhh5",
+          "name": "Header Auth account"
+        },
+        "supabaseApi": {
+          "id": "zuQ9RKLERDxelcJf",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const instanceId = $('Split Instances').item.json.id;\nconst instanceName = $('Split Instances').item.json.name;\n\nif (!instanceName) {\n    throw new Error(\"Instance Name is missing! Check Split Instances node.\");\n}\n\n// Use $input.all() to get the output from 'Upsert Contacts' which has the Supabase UUIDs\n// Supabase returns an array of inserted rows, so we flat() to get a single list of objects\nconst contacts = $input.all().map(i => i.json).flat();\nconst contactMap = {};\n\ncontacts.forEach(c => {\n    if (c.phone && c.id) {\n        // Store both ID and profile pic URL\n        contactMap[c.phone] = {\n            id: c.id,\n            profile_pic_url: c.profile_pic_url\n        };\n    }\n});\n\nreturn [{\n    json: { contactMap, instanceId, instanceName },\n    pairedItem: { item: 0 }\n}];"
+      },
+      "id": "74091a3b-6e7a-484b-8ca5-18c5e7a5a7ca",
+      "name": "Create Contact Map",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1792,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/chat/findChats/{{ $json.instanceName.trim() }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "e73089f2-a4d5-4db0-b76c-212089126732",
+      "name": "Get Chats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -1584,
+        128
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CWBY9me7mGfNfhh5",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const instanceId = $('Split Instances').item.json.id;\nconst contactMap = $('Create Contact Map').item.json.contactMap;\nconst chats = $input.all().map(i => i.json);\n\nconst normalizedChats = [];\n\n// DEBUG: Check if map is populated\nconst mapKeys = Object.keys(contactMap || {});\nif (mapKeys.length === 0) {\n    throw new Error(\"Contact Map is empty!\");\n}\n\nchats.forEach(chat => {\n    if (Array.isArray(chat)) {\n        chat.forEach(c => processChat(c));\n    } else {\n        processChat(chat);\n    }\n});\n\nfunction processChat(c) {\n    // IMPORTANT: Use remoteJid (WhatsApp chat ID), NOT id (Evolution's internal ID)\n    const remoteJid = c.remoteJid || c.id;\n    if (!remoteJid) return;\n    \n    const phone = remoteJid.split('@')[0];\n    \n    // Get contact ID from map (now contains object {id, profile_pic_url})\n    const contactData = contactMap[phone];\n    const contactId = contactData ? contactData.id : null;\n    \n    // DEBUG: Log first failure\n    if (!contactId && normalizedChats.length === 0) {\n         // throw new Error(`Debug: Phone ${phone} not found in map. Map keys sample: ${mapKeys.slice(0, 5).join(', ')}`);\n    }\n    \n    // Extract last message content\n    const lastMsgObj = c.lastMessage;\n    const content = lastMsgObj?.message?.conversation || \n                    lastMsgObj?.message?.extendedTextMessage?.text || \n                    lastMsgObj?.message?.imageMessage?.caption || \n                    (lastMsgObj ? 'Media/Other' : null);\n\n    normalizedChats.push({\n        chat_id: remoteJid,\n        instance_id: instanceId,\n        contact_id: contactId,\n        unread_count: c.unreadCount || 0,\n        last_message_time: c.conversationTimestamp ? new Date(c.conversationTimestamp * 1000).toISOString() : new Date().toISOString(),\n        last_message: content\n    });\n}\n\n// DEBUG: Throw error to see output\n// const sample = normalizedChats.find(c => c.contact_id === null);\n// if (sample) {\n//    throw new Error(`Failed to map contact! Chat: ${sample.chat_id}, Phone: ${sample.chat_id.split('@')[0]}, Map Sample: ${mapKeys.slice(0, 5)}`);\n// }\n\nreturn normalizedChats;"
+      },
+      "id": "a874ecc0-d238-40b0-9245-ca4d820cae78",
+      "name": "Normalize Chats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1360,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/chats?on_conflict=chat_id,instance_id",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "1dbf01cf-2835-4808-9871-1342fed846eb",
+      "name": "Upsert Chats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -1136,
+        128
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CWBY9me7mGfNfhh5",
+          "name": "Header Auth account"
+        },
+        "supabaseApi": {
+          "id": "zuQ9RKLERDxelcJf",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const instanceName = $('Split Instances').item.json.name;\nconst items = $input.all();\nconst chatMap = {};\n\nreturn items.map((item, index) => {\n    // Supabase returns an array of inserted rows, take the first one\n    const c = Array.isArray(item.json) ? item.json[0] : item.json;\n    chatMap[c.chat_id] = c.id;\n    c.instanceName = instanceName;\n    return {\n        json: c,\n        pairedItem: { item: index }\n    };\n});"
+      },
+      "id": "669b7be5-64e9-490d-ae6e-69fc2ede582a",
+      "name": "Create Chat Map",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -912,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "2abf4c06-af54-4744-8b1b-d70e4e041148",
+      "name": "Split Chats",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -704,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/chat/findMessages/{{ $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"where\": { \"key\": { \"remoteJid\": $json.chat_id } }, \"limit\": 60 } }}",
+        "options": {}
+      },
+      "id": "d62609dc-d277-4749-b50d-b244ae3653b8",
+      "name": "Get Messages",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -480,
+        128
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CWBY9me7mGfNfhh5",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const instanceId = $('Split Instances').item.json.id;\nconst chatUuid = $('Split Chats').item.json.id;\nconst contactMapData = $('Create Contact Map').first().json.contactMap;\nconst items = $input.all();\n\nconst normalizedMessages = [];\n\n// Map Evolution API message types to database-valid types\nfunction mapMessageType(evoType) {\n    const typeMap = {\n        'conversation': 'text',\n        'extendedTextMessage': 'text',\n        'imageMessage': 'image',\n        'videoMessage': 'video',\n        'audioMessage': 'audio',\n        'documentMessage': 'document',\n        'stickerMessage': 'sticker',\n        'locationMessage': 'location',\n        'contactMessage': 'contact',\n        'protocolMessage': 'system',\n        'ephemeralMessage': 'system',\n        'ptvMessage': 'video'\n    };\n    return typeMap[evoType] || 'text';\n}\n\nitems.forEach((itemObj, index) => {\n    const data = itemObj.json;\n    \n    // Handle Evolution API paginated response structure\n    let messages = [];\n    if (data.messages && data.messages.records) {\n        // Paginated response: { messages: { records: [...] } }\n        messages = data.messages.records;\n    } else if (Array.isArray(data)) {\n        // Direct array\n        messages = data;\n    } else {\n        // Single message object\n        messages = [data];\n    }\n    \n    messages.forEach(m => processMessage(m, index));\n});\n\nfunction processMessage(m, parentIndex) {\n    const key = m.key || {};\n    const messageId = key.id;\n    if (!messageId) return;\n    \n    // Extract participant\n    // For group chats, participant is in key.participant\n    // For direct chats, it might be key.remoteJid (if not from me)\n    let participant = key.participant || key.remoteJid;\n    \n    // If participant has @lid, we might want to use participantAlt (phone number) if available\n    // But usually the contact map is keyed by phone number (user ID part of JID)\n    if (key.participantAlt) {\n        participant = key.participantAlt;\n    }\n    \n    const participantPhone = participant ? participant.split('@')[0] : null;\n    \n    // Get contact data from map (now contains id and profile_pic_url)\n    const contactData = participantPhone ? contactMapData[participantPhone] : null;\n    const contactId = contactData ? contactData.id : null;\n    const thumbnailPath = contactData ? contactData.profile_pic_url : null;\n    \n    const content = m.message?.conversation || m.message?.extendedTextMessage?.text || m.message?.imageMessage?.caption || 'Media/Other';\n    \n    // Get the raw message type from Evolution API\n    const rawType = Object.keys(m.message || {})[0] || 'conversation';\n    const messageType = mapMessageType(rawType);\n    \n    // Extract media info if available\n    let mediaUrl = null;\n    let mediaPath = null;\n    let mediaSize = null;\n    let mediaMimeType = null;\n    \n    const mediaMsg = m.message?.[rawType];\n    if (mediaMsg && typeof mediaMsg === 'object') {\n        mediaUrl = mediaMsg.url || null;\n        mediaPath = mediaMsg.directPath || null;\n        mediaSize = mediaMsg.fileLength?.low || mediaMsg.fileLength || null;\n        mediaMimeType = mediaMsg.mimetype || null;\n    }\n\n    // Extract quoted message ID\n    const contextInfo = m.message?.[rawType]?.contextInfo || m.contextInfo;\n    const quotedMessageId = contextInfo?.stanzaId || null;\n    \n    // Extract metadata\n    // We want to store contextInfo and messageContextInfo in the metadata column\n    const messageContextInfo = m.message?.messageContextInfo || null;\n    const metadata = {\n        contextInfo: contextInfo,\n        messageContextInfo: messageContextInfo\n    };\n\n    normalizedMessages.push({\n        json: {\n            message_id: messageId,\n            chat_id: chatUuid,\n            contact_id: contactId,\n            instance_id: instanceId,\n            content: content,\n            from_me: key.fromMe || false,\n            timestamp_msg: m.messageTimestamp ? new Date(m.messageTimestamp * 1000).toISOString() : new Date().toISOString(),\n            status: m.status || 'delivered',\n            message_type: messageType,\n            thumbnail_path: thumbnailPath,\n            media_url: mediaUrl,\n            media_path: mediaPath,\n            media_size: mediaSize,\n            media_mime_type: mediaMimeType,\n            quoted_message_id: quotedMessageId,\n            participant: participant, // Populate the participant column\n            metadata: metadata // Populate the metadata column\n        },\n        pairedItem: { item: parentIndex }\n    });\n}\n\nreturn normalizedMessages;"
+      },
+      "id": "357cf216-8f5a-4797-9926-ba8769a9efc6",
+      "name": "Normalize Messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -256,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/messages?on_conflict=message_id,chat_id",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "471af4cd-0ffb-4e97-92db-fb558db4be79",
+      "name": "Upsert Messages",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -32,
+        128
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CWBY9me7mGfNfhh5",
+          "name": "Header Auth account"
+        },
+        "supabaseApi": {
+          "id": "zuQ9RKLERDxelcJf",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking \"Execute Workflow\"": {
+      "main": [
+        [
+          {
+            "node": "Get Instances",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Instances": {
+      "main": [
+        [
+          {
+            "node": "Split Instances",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Instances": {
+      "main": [
+        [
+          {
+            "node": "Get Contacts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Groups",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Contacts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Contacts": {
+      "main": [
+        [
+          {
+            "node": "Add Instance ID Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Groups": {
+      "main": [
+        [
+          {
+            "node": "Add Instance ID Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Instance ID Contacts": {
+      "main": [
+        [
+          {
+            "node": "Merge Contacts & Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Instance ID Groups": {
+      "main": [
+        [
+          {
+            "node": "Merge Contacts & Groups",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Contacts & Groups": {
+      "main": [
+        [
+          {
+            "node": "Normalize Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Contacts": {
+      "main": [
+        [
+          {
+            "node": "Upsert Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Contacts": {
+      "main": [
+        [
+          {
+            "node": "Create Contact Map",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Contact Map": {
+      "main": [
+        [
+          {
+            "node": "Get Chats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Chats": {
+      "main": [
+        [
+          {
+            "node": "Normalize Chats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Chats": {
+      "main": [
+        [
+          {
+            "node": "Upsert Chats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Chats": {
+      "main": [
+        [
+          {
+            "node": "Create Chat Map",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Chat Map": {
+      "main": [
+        [
+          {
+            "node": "Split Chats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Chats": {
+      "main": [
+        [
+          {
+            "node": "Get Messages",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Messages": {
+      "main": [
+        [
+          {
+            "node": "Normalize Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Messages": {
+      "main": [
+        [
+          {
+            "node": "Upsert Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Messages": {
+      "main": [
+        [
+          {
+            "node": "Split Chats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "705400da-fc18-4cec-a8b8-144e5e6df9ec",
+  "meta": {
+    "instanceId": "29b01c8b9ff5b15e509ba1a5b20532d4fb4bf85c23a5c61192c5efaaa4360694"
+  },
+  "id": "IKpaouGhgNbEcHmZ",
+  "tags": []
+}

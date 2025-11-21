@@ -1,0 +1,83 @@
+services:
+  # --- 1. BANCO DE DADOS (POSTGRES) ---
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=evolution
+      - POSTGRES_PASSWORD=evolution
+      - POSTGRES_DB=evolution
+    volumes:
+      - evolution_db_data:/var/lib/postgresql/data
+
+  # --- 2. CACHE (REDIS - NOVO!) ---
+  redis:
+    image: redis:alpine
+    restart: always
+    command: [ "redis-server", "--appendonly", "yes" ]
+    volumes:
+      - evolution_redis_data:/data
+
+  # --- 3. MOTOR DE WHATSAPP (EVOLUTION) ---
+  evolution-api:
+    container_name: evolution_api
+    image: evoapicloud/evolution-api:v2.3.6
+    restart: always
+    ports:
+      - target: 8080
+        published: 8080
+        protocol: tcp
+        mode: host
+    environment:
+      - AUTHENTICATION_API_KEY=ddbb8ca439de7854b6cb4b7660f2d0fa
+
+      # Configuração do Banco (Postgres)
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://evolution:evolution@postgres:5432/evolution
+      - DATABASE_CONNECTION_CLIENT_NAME=evolution_exchange
+
+      # Configuração do Cache (Redis - ADICIONADO)
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis:6379/0
+      - CACHE_REDIS_PREFIX_KEY=evolution
+      - CACHE_REDIS_SAVE_INSTANCES=false
+      - CACHE_TYPE=redis
+
+      # Configuração do Webhook (n8n)
+      - WEBHOOK_GLOBAL_URL=http://n8n:5678/webhook/whatsapp
+      - WEBHOOK_GLOBAL_ENABLED=true
+      - WEBHOOK_EVENTS_MESSAGES_UPSERT=true
+    volumes:
+      - evolution_store:/evolution/store
+    depends_on:
+      - postgres
+      - redis
+
+  # --- 4. AUTOMAÇÃO (N8N) ---
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: always
+    ports:
+      - target: 5678
+        published: 5678
+        protocol: tcp
+        mode: host
+    environment:
+      - N8N_SECURE_COOKIE=false
+      - GENERIC_TIMEZONE=America/Sao_Paulo
+      # Se souber o IP da máquina, coloque aqui. Senão, deixe comentado ou localhost
+      - WEBHOOK_URL=http://localhost:5678/
+      - EVOLUTION_API_URL=http://evolution-api:8080
+      - SUPABASE_URL=https://epsgkpxttmzlklokjlqs.supabase.co
+      - SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVwc2drcHh0dG16bGtsb2tqbHFzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzgyMjEyOSwiZXhwIjoyMDc5Mzk4MTI5fQ.8w-fbl_GyZ3GMwSrxnDg9Z9NCYC75WAsTVBxYZAYHjo
+
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  evolution_store:
+  n8n_data:
+  evolution_db_data:
+  evolution_redis_data: # Volume novo para o Redis

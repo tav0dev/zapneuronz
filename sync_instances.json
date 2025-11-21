@@ -1,0 +1,141 @@
+{
+  "name": "sync_instances",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "cce4fef9-e2c6-40fa-942b-60b19ccaa2c9",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -640,
+        -224
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.EVOLUTION_API_URL }}/instance/fetchInstances",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "51133378-00d6-41df-a7ff-33003676b77f",
+      "name": "Fetch Instances",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -416,
+        -224
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ALIKHkddLS2thKtT",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const supabaseData = [];\nconst FALLBACK_USER_ID = '00000000-0000-0000-0000-000000000000';\n\nfunction mapStatus(status, connectionStatus) {\n    let s = (connectionStatus || status || '').toLowerCase();\n    if (s === 'open' || s === 'connected') return 'connected';\n    if (s === 'close' || s === 'disconnected') return 'disconnected';\n    if (s === 'connecting') return 'connecting';\n    if (s === 'qr' || s === 'qrcode') return 'qr_code';\n    return 'disconnected';\n}\n\nfunction processInstance(inst) {\n    const name = inst.instanceName || inst.name;\n    \n    if (name) {\n        supabaseData.push({\n            name: name,\n            status: mapStatus(inst.status, inst.connectionStatus),\n            evolution_instance_id: inst.instanceId || inst.id || inst.name,\n            user_id: inst.owner || inst.user_id || FALLBACK_USER_ID,\n            phone: inst.ownerJid ? inst.ownerJid.split('@')[0] : null,\n            profile_pic_url: inst.profilePictureUrl || null,\n            // Mapped columns (raw_base_config removed as requested)\n            qr_code: inst.qrcode || inst.base64 || null,\n            webhook_url: inst.webhook || (inst.webhookUrl ? inst.webhookUrl : null),\n            settings: inst.settings ? JSON.stringify(inst.settings) : null,\n        });\n    }\n}\n\nfor (const item of items) {\n    const data = item.json;\n    if (Array.isArray(data)) {\n        for (const subItem of data) {\n            processInstance(subItem.instance || subItem);\n        }\n    } else {\n        processInstance(data.instance || data);\n    }\n}\n\nreturn [{ json: { data: supabaseData } }];"
+      },
+      "id": "0b969769-6f98-4bae-8a6f-bacbe074d192",
+      "name": "Prepare Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -192,
+        -224
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/instances",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.data }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "bff8a7c6-b82f-463e-9827-6fa5db8bebc4",
+      "name": "Upsert to Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        32,
+        -224
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ALIKHkddLS2thKtT",
+          "name": "Header Auth account"
+        },
+        "supabaseApi": {
+          "id": "R6601ON1CHOFmHV3",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Instances",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Instances": {
+      "main": [
+        [
+          {
+            "node": "Prepare Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Data": {
+      "main": [
+        [
+          {
+            "node": "Upsert to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ce3c8722-cdfd-489c-ae29-8ee1bc1aa3fd",
+  "meta": {
+    "instanceId": "6e80292b696da5f450f95f6097e1ee7decfa56ef20478b6394e492bf7f2481e9"
+  },
+  "id": "7xvtJnoGVdCSa5cX",
+  "tags": []
+}
