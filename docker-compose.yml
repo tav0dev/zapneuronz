@@ -70,8 +70,8 @@ services:
       # Se souber o IP da máquina, coloque aqui. Senão, deixe comentado ou localhost
       - WEBHOOK_URL=http://localhost:5678/
       - EVOLUTION_API_URL=http://evolution-api:8080
-      - SUPABASE_URL=https://epsgkpxttmzlklokjlqs.supabase.co
-      - SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVwc2drcHh0dG16bGtsb2tqbHFzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzgyMjEyOSwiZXhwIjoyMDc5Mzk4MTI5fQ.8w-fbl_GyZ3GMwSrxnDg9Z9NCYC75WAsTVBxYZAYHjo
+      - SUPABASE_URL=https://jtegqmxjiadqkubtrzel.supabase.co
+      - SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0ZWdxbXhqaWFkcWt1YnRyemVsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzE0MDgzOSwiZXhwIjoyMDc4NzE2ODM5fQ.TkwfG33GqCvm0gM-9XnYZC7s3sDErEukt0lkxxeKyVM
 
     volumes:
       - n8n_data:/home/node/.n8n
