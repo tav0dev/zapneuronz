@@ -76,6 +76,16 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
 
+  web:
+    image: nginx
+    volumes:
+      - ./templates:/etc/nginx/templates
+    ports:
+      - "9090:90"
+    environment:
+      - NGINX_HOST=foobar.com
+      - NGINX_PORT=90
+
 volumes:
   evolution_store:
   n8n_data:
