@@ -7,9 +7,9 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro # Se usar HTTPS
+    configs:
+      - source: nginx_config
+        target: /etc/nginx/nginx.conf
     depends_on:
       - n8n
       - evolution-api
@@ -44,6 +44,10 @@ services:
     restart: unless-stopped
     networks:
       - zapneuronz-network
+
+configs:
+  nginx_config:
+    file: ./nginx.conf
 
 networks:
   zapneuronz-network:
