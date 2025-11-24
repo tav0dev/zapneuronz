@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: zapneuronz-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro # Se usar HTTPS
+    depends_on:
+      - n8n
+      - evolution-api
+    restart: unless-stopped
+    networks:
+      - zapneuronz-network
+
+  n8n:
+    image: n8nio/n8n
+    container_name: zapneuronz-n8n
+    environment:
+      - N8N_HOST=${N8N_HOST}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=${WEBHOOK_URL}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+    networks:
+      - zapneuronz-network
+
+  evolution-api:
+    image: atendai/evolution-api:latest
+    container_name: zapneuronz-evolution
+    environment:
+      - SERVER_URL=${SERVER_URL}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+    volumes:
+      - evolution_data:/evolution/instances
+    restart: unless-stopped
+    networks:
+      - zapneuronz-network
+
+networks:
+  zapneuronz-network:
+    driver: bridge
+
+volumes:
+  n8n_data:
+  evolution_data:
