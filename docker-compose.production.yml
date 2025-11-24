@@ -18,7 +18,7 @@ services:
     networks:
       - zapneuronz-network
     ports:
-      - "5678:5678"
+      - "80:5678"
 
   evolution-api:
     image: atendai/evolution-api:latest
