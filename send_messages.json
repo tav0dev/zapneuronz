@@ -1,0 +1,258 @@
+{
+  "name": "Gateway: Send Omnichannel (Text, Media, Audio)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-message",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook (Frontend)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        380,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.body.type }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "text"
+            },
+            {
+              "value2": "audio"
+            },
+            {
+              "value2": "image",
+              "outputKey": "media"
+            },
+            {
+              "value2": "video",
+              "outputKey": "media"
+            },
+            {
+              "value2": "document",
+              "outputKey": "media"
+            }
+          ]
+        }
+      },
+      "id": "router-type",
+      "name": "Router Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/message/sendText/{{ $json.body.instance_name }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"number\": $json.body.chat_id, \n  \"text\": $json.body.content,\n  \"linkPreview\": true\n} }}",
+        "options": {}
+      },
+      "id": "send-text",
+      "name": "Send Text",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        900,
+        100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CWBY9me7mGfNfhh5",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/message/sendWhatsAppAudio/{{ $json.body.instance_name }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"number\": $json.body.chat_id, \n  \"audio\": $json.body.media_url\n} }}",
+        "options": {}
+      },
+      "id": "send-audio",
+      "name": "Send Audio (PTT)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        900,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CWBY9me7mGfNfhh5",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/message/sendMedia/{{ $json.body.instance_name }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"number\": $json.body.chat_id, \n  \"mediaMessage\": {\n      \"mediatype\": $json.body.type,\n      \"media\": $json.body.media_url,\n      \"caption\": $json.body.caption || \"\",\n      \"fileName\": $json.body.filename || \"file\"\n  }\n} }}",
+        "options": {}
+      },
+      "id": "send-media",
+      "name": "Send Media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        900,
+        500
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CWBY9me7mGfNfhh5",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n   \"error\": true,\n   \"message\": \"Failed to send message via EvolutionAPI\",\n   \"details\": $json\n} }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "respond-error",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook (Frontend)": {
+      "main": [
+        [
+          {
+            "node": "Router Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router Type": {
+      "main": [
+        [
+          {
+            "node": "Send Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Audio (PTT)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Text": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Audio (PTT)": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Media": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
