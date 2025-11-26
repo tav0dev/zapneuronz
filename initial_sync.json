@@ -1,5 +1,5 @@
 {
-  "name": "Initial Sync (EvolutionAPI -> Supabase)",
+  "name": "initial_sync corrigido",
   "nodes": [
     {
       "parameters": {},
@@ -672,7 +672,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "d7947930-0f23-4359-aba3-a2b85dd47ec9",
+  "versionId": "f1e623cf-6d05-4cf8-9bc9-2f0e28d91204",
   "meta": {
     "instanceId": "028b54764a5e82c8feecad5f0f0b75a6ce3b8ee71394c70dfbaeff0ffd685c7c"
   },
