@@ -7,19 +7,20 @@
         "path": "fetch-history",
         "options": {}
       },
-      "id": "webhook-trigger",
+      "id": "3f2b7beb-ae36-4b57-b8ca-df738a2fac9d",
       "name": "Webhook (Frontend)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        460,
-        300
-      ]
+        -464,
+        240
+      ],
+      "webhookId": "23dc33f5-95bf-49e3-80cf-055bbc944949"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.EVOLUTION_API_URL }}/chat/findMessages/{{ $('Webhook (Frontend)').first().json.body.instance_name }}",
+        "url": "=https://evo.zapneuronz.com.br/chat/findMessages/{{ $('Webhook (Frontend)').first().json.body.instance_name }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -27,60 +28,60 @@
         "jsonBody": "={{ {\n    \"where\": {\n        \"key\": {\n            \"remoteJid\": $('Webhook (Frontend)').first().json.body.chat_id\n        }\n    },\n    \"options\": {\n        \"limit\": 60,\n        \"cursor\": {\n            \"before\": {\n                \"id\": $('Webhook (Frontend)').first().json.body.cursor_id\n            }\n        }\n    }\n} }}",
         "options": {}
       },
-      "id": "get-history-evo",
+      "id": "232e5bd8-d0ae-425f-a81c-6e5b6ca65077",
       "name": "Get History (Evolution)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        900,
-        300
+        -16,
+        240
       ],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "CWBY9me7mGfNfhh5",
+          "id": "wDjVZ1Dbe26c2YVQ",
           "name": "Header Auth account"
         }
       }
     },
     {
       "parameters": {
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/instances?name=eq.{{ $json.body.instance_name }}&select=id",
+        "url": "=https://agsvbhzvlwygpnxygtnt.supabase.co/rest/v1/instances?name=eq.{{ $json.body.instance_name }}&select=id",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "options": {}
       },
-      "id": "get-instance-uuid",
+      "id": "73d64ed8-894f-4e68-bc81-483302d4d19a",
       "name": "Get Instance UUID",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        680,
-        300
+        -240,
+        240
       ],
       "credentials": {
         "supabaseApi": {
-          "id": "zuQ9RKLERDxelcJf",
+          "id": "5giRdkHvRJY0ru7a",
           "name": "Supabase account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "const instanceId = $('Get Instance UUID').first().json.id;\nconst chatId = $('Webhook (Frontend)').first().json.body.chat_id;\nconst responseData = $input.all()[0].json;\n\n// Tratamento para resposta paginada ou array direto\nlet messages = [];\nif (responseData.messages && responseData.messages.records) {\n    messages = responseData.messages.records;\n} else if (Array.isArray(responseData)) {\n    messages = responseData;\n}\n\nconst normalizedMessages = [];\n\nfunction mapMessageType(evoType) {\n    const typeMap = {\n        'conversation': 'text',\n        'extendedTextMessage': 'text',\n        'imageMessage': 'image',\n        'videoMessage': 'video',\n        'audioMessage': 'audio',\n        'documentMessage': 'document',\n        'stickerMessage': 'sticker',\n        'locationMessage': 'location',\n        'contactMessage': 'contact',\n        'protocolMessage': 'system',\n        'ephemeralMessage': 'system',\n        'ptvMessage': 'video'\n    };\n    return typeMap[evoType] || 'text';\n}\n\nmessages.forEach(m => {\n    const key = m.key || {};\n    const messageId = key.id;\n    if (!messageId) return;\n\n    const content = m.message?.conversation || \n                    m.message?.extendedTextMessage?.text || \n                    m.message?.imageMessage?.caption || \n                    'Media/Other';\n    \n    const rawType = Object.keys(m.message || {})[0] || 'conversation';\n    const messageType = mapMessageType(rawType);\n\n    // Extração simplificada de Mídia\n    const mediaMsg = m.message?.[rawType];\n    let mediaUrl = null;\n    if (mediaMsg && typeof mediaMsg === 'object') {\n        mediaUrl = mediaMsg.url || null;\n    }\n\n    // Contexto (Citação)\n    const contextInfo = m.message?.[rawType]?.contextInfo || m.contextInfo;\n\n    normalizedMessages.push({\n        message_id: messageId,\n        key_id: messageId,\n        key_remote_jid: chatId,\n        instance_id: instanceId,\n        content: content,\n        key_from_me: key.fromMe || false,\n        push_name: m.pushName || null,\n        message_timestamp: m.messageTimestamp ? new Date(m.messageTimestamp * 1000).toISOString() : new Date().toISOString(),\n        status: m.status || 'delivered',\n        message_type: messageType,\n        media_url: mediaUrl,\n        context_info: contextInfo || {},\n        quoted_message_id: contextInfo?.stanzaId || null\n    });\n});\n\nreturn normalizedMessages;"
+        "jsCode": "const instanceId = $('Get Instance UUID').first().json.id;\nconst chatId = $('Webhook (Frontend)').first().json.body.chat_id;\nconst responseData = $input.all()[0].json;\n\n// Tratamento para resposta paginada ou array direto\nlet messages = [];\nif (responseData.messages && responseData.messages.records) {\n    messages = responseData.messages.records;\n} else if (Array.isArray(responseData)) {\n    messages = responseData;\n}\n\nconst normalizedMessages = [];\n\nfunction mapMessageType(evoType) {\n    const typeMap = {\n        'conversation': 'text',\n        'extendedTextMessage': 'text',\n        'imageMessage': 'image',\n        'videoMessage': 'video',\n        'audioMessage': 'audio',\n        'documentMessage': 'document',\n        'stickerMessage': 'sticker',\n        'locationMessage': 'location',\n        'contactMessage': 'contact',\n        'protocolMessage': 'system',\n        'ephemeralMessage': 'system',\n        'ptvMessage': 'video'\n    };\n    return typeMap[evoType] || 'text';\n}\n\nmessages.forEach(m => {\n    const key = m.key || {};\n    const messageId = key.id;\n    if (!messageId) return;\n\n    const content = m.message?.conversation || \n                    m.message?.extendedTextMessage?.text || \n                    m.message?.imageMessage?.caption || \n                    'Media/Other';\n    \n    const rawType = Object.keys(m.message || {})[0] || 'conversation';\n    const messageType = mapMessageType(rawType);\n\n    // Extração simplificada de Mídia\n    const mediaMsg = m.message?.[rawType];\n    let mediaUrl = null;\n    if (mediaMsg && typeof mediaMsg === 'object') {\n        mediaUrl = mediaMsg.url || null;\n    }\n\n    // Contexto (Citação)\n    const contextInfo = m.message?.[rawType]?.contextInfo || m.contextInfo;\n\n    normalizedMessages.push({\n        message_id: messageId,\n        chat_id: chatId,\n        instance_id: instanceId,\n        content: content,\n        from_me: key.fromMe || false,\n        timestamp_msg: m.messageTimestamp ? new Date(m.messageTimestamp * 1000).toISOString() : new Date().toISOString(),\n        status: m.status || 'delivered',\n        message_type: messageType,\n        media_url: mediaUrl,\n        quoted_message_id: contextInfo?.stanzaId || null,\n        metadata: {\n            contextInfo: contextInfo || {},\n            pushName: m.pushName || null,\n            key: key\n        }\n    });\n});\n\nreturn normalizedMessages;"
       },
-      "id": "normalize-history",
+      "id": "75d482f9-86d8-483d-b79c-dba2a921163c",
       "name": "Normalize History",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
-        300
+        208,
+        240
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/messages?on_conflict=message_id,chat_id",
+        "url": "=https://agsvbhzvlwygpnxygtnt.supabase.co/rest/v1/messages?on_conflict=message_id,chat_id",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "sendHeaders": true,
@@ -97,17 +98,17 @@
         "jsonBody": "={{ $json }}",
         "options": {}
       },
-      "id": "upsert-history",
+      "id": "ba577e3c-da0f-4227-89b8-f021ee49c418",
       "name": "Upsert History",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        1340,
-        300
+        432,
+        240
       ],
       "credentials": {
         "supabaseApi": {
-          "id": "zuQ9RKLERDxelcJf",
+          "id": "5giRdkHvRJY0ru7a",
           "name": "Supabase account"
         }
       }
@@ -118,16 +119,17 @@
         "responseBody": "={{ $json }}",
         "options": {}
       },
-      "id": "respond-frontend",
+      "id": "9cd54258-8817-4ea8-80ff-8f2d881a92a4",
       "name": "Respond to Frontend",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1560,
-        300
+        640,
+        240
       ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Webhook (Frontend)": {
       "main": [
@@ -184,5 +186,15 @@
         ]
       ]
     }
-  }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e5256234-7ced-49c5-91ca-07525100569f",
+  "meta": {
+    "instanceId": "028b54764a5e82c8feecad5f0f0b75a6ce3b8ee71394c70dfbaeff0ffd685c7c"
+  },
+  "id": "7Abj9vTxzY1nS5qp",
+  "tags": []
 }
