@@ -1,297 +1,305 @@
 {
-    "name": "Real-time Sync (EvolutionAPI Webhook)",
-    "nodes": [
-        {
-            "parameters": {
-                "httpMethod": "POST",
-                "path": "evolution-webhook",
-                "options": {}
-            },
-            "id": "webhook",
-            "name": "Webhook",
-            "type": "n8n-nodes-base.webhook",
-            "typeVersion": 1,
-            "position": [
-                680,
-                300
-            ]
-        },
-        {
-            "parameters": {
-                "method": "GET",
-                "url": "={{ $env.SUPABASE_URL }}/rest/v1/instances?name=eq.{{ encodeURIComponent($json.body.instance) }}&select=id",
-                "authentication": "predefinedCredentialType",
-                "nodeCredentialType": "supabaseApi",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": []
-                },
-                "options": {}
-            },
-            "id": "get-instance-uuid",
-            "name": "Get Instance UUID",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
-            "position": [
-                900,
-                300
-            ],
-            "credentials": {
-                "httpHeaderAuth": {
-                    "id": "CWBY9me7mGfNfhh5",
-                    "name": "Header Auth account"
-                },
-                "supabaseApi": {
-                    "id": "zuQ9RKLERDxelcJf",
-                    "name": "Supabase account"
-                }
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "evolution-webhook",
+        "options": {}
+      },
+      "id": "7cb630f8-d699-4458-9c50-04f22b69a826",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -928,
+        272
+      ],
+      "webhookId": "dcd9505d-1043-48c7-87df-97981cc0d525"
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.body.type }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "MESSAGES_UPSERT"
             }
-        },
-        {
-            "parameters": {
-                "jsCode": "const body = $('Webhook').first().json.body;\nconst data = body.data;\nconst items = $input.all();\n\n// Debug: Log the input from the previous node\nif (items.length === 0 || !items[0].json) {\n    throw new Error(`Get Instance UUID returned no data for instance \"${body.instance}\"`);\n}\n\n// Handle array response from Supabase (standard behavior without Accept header)\n// n8n might flatten it, or it might be in the first item\nconst instanceId = items[0].json.id;\n\nif (!instanceId) {\n    // Check if we got an error object instead\n    const error = items[0].json.message || items[0].json.code || JSON.stringify(items[0].json);\n    throw new Error(`Instance \"${body.instance}\" not found or error! Response: ${error}`);\n}\n\nif (!data || !data.key) return [];\n\nconst remoteJid = data.key.remoteJid;\nconst participant = data.key.participant || remoteJid;\n\n// Robust phone extraction\n// 1. Try formatted phoneNumber if available\n// 2. Parse JID if it contains '@' (remove domain and device ID)\nconst jid = participant;\nconst phone = data.phoneNumber || (jid && jid.includes('@') ? jid.split('@')[0].split(':')[0] : null);\n\nif (!phone) return [];\n\nconst pushName = data.pushName || data.key.pushName;\nconst name = pushName || phone;\nconst pic = data.senderPhoto || null;\n\n// Determine if it's a group based on JID\nconst isGroup = remoteJid.includes('@g.us');\n\nreturn [{\n    json: {\n        phone: phone,\n        name: name,\n        push_name: pushName,\n        profile_pic_url: pic,\n        is_group: isGroup,\n        instance_id: instanceId\n    }\n}];"
-            },
-            "id": "normalize-contact",
-            "name": "Normalize Contact",
-            "type": "n8n-nodes-base.code",
-            "typeVersion": 2,
-            "position": [
-                1120,
-                200
-            ]
-        },
-        {
-            "parameters": {
-                "method": "POST",
-                "url": "={{ $env.SUPABASE_URL }}/rest/v1/contacts?on_conflict=phone,instance_id",
-                "authentication": "predefinedCredentialType",
-                "nodeCredentialType": "supabaseApi",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Prefer",
-                            "value": "resolution=merge-duplicates,return=representation"
-                        }
-                    ]
-                },
-                "sendBody": true,
-                "specifyBody": "json",
-                "jsonBody": "={{ $json }}",
-                "options": {}
-            },
-            "id": "upsert-contact",
-            "name": "Upsert Contact",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
-            "position": [
-                1340,
-                200
-            ],
-            "credentials": {
-                "httpHeaderAuth": {
-                    "id": "CWBY9me7mGfNfhh5",
-                    "name": "Header Auth account"
-                },
-                "supabaseApi": {
-                    "id": "zuQ9RKLERDxelcJf",
-                    "name": "Supabase account"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "jsCode": "const body = $('Webhook').first().json.body;\nconst data = body.data;\nconst instanceId = $('Get Instance UUID').first().json.id;\nconst contact = $input.all()[0].json;\n\nconst remoteJid = data.key.remoteJid;\n\n// Extract content for last message preview\nconst messageContent = data.message?.conversation || \n                       data.message?.extendedTextMessage?.text || \n                       data.message?.imageMessage?.caption || \n                       'Media/Other';\n\nreturn [{\n    json: {\n        chat_id: remoteJid,\n        instance_id: instanceId,\n        contact_id: contact.id, // From Upsert Contact response\n        last_message: messageContent,\n        last_message_time: new Date().toISOString()\n    }\n}];"
-            },
-            "id": "normalize-chat",
-            "name": "Normalize Chat",
-            "type": "n8n-nodes-base.code",
-            "typeVersion": 2,
-            "position": [
-                1560,
-                200
-            ]
-        },
-        {
-            "parameters": {
-                "method": "POST",
-                "url": "={{ $env.SUPABASE_URL }}/rest/v1/chats?on_conflict=chat_id,instance_id",
-                "authentication": "predefinedCredentialType",
-                "nodeCredentialType": "supabaseApi",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Prefer",
-                            "value": "resolution=merge-duplicates,return=representation"
-                        }
-                    ]
-                },
-                "sendBody": true,
-                "specifyBody": "json",
-                "jsonBody": "={{ $json }}",
-                "options": {}
-            },
-            "id": "upsert-chat",
-            "name": "Upsert Chat",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
-            "position": [
-                1780,
-                200
-            ],
-            "credentials": {
-                "httpHeaderAuth": {
-                    "id": "CWBY9me7mGfNfhh5",
-                    "name": "Header Auth account"
-                },
-                "supabaseApi": {
-                    "id": "zuQ9RKLERDxelcJf",
-                    "name": "Supabase account"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "jsCode": "const body = $('Webhook').first().json.body;\nconst data = body.data;\nconst instanceId = $('Get Instance UUID').first().json.id;\nconst contact = $('Upsert Contact').first().json;\nconst chat = $('Upsert Chat').first().json;\n\n// Map Evolution API message types\nfunction mapMessageType(evoType) {\n    const typeMap = {\n        'conversation': 'text',\n        'extendedTextMessage': 'text',\n        'imageMessage': 'image',\n        'videoMessage': 'video',\n        'audioMessage': 'audio',\n        'documentMessage': 'document',\n        'stickerMessage': 'sticker',\n        'locationMessage': 'location',\n        'contactMessage': 'contact',\n        'protocolMessage': 'system',\n        'ephemeralMessage': 'system',\n        'ptvMessage': 'video'\n    };\n    return typeMap[evoType] || 'text';\n}\n\n// Map Evolution API status to Supabase allowed values\nfunction mapStatus(status) {\n    const statusMap = {\n        'PENDING': 'sent',\n        'SERVER_ACK': 'sent',\n        'DELIVERY_ACK': 'delivered',\n        'READ': 'read',\n        'PLAY': 'read',\n        'ERROR': 'error',\n        'DELETED': 'error',\n        'SENT': 'sent'\n    };\n    return statusMap[status] || 'sent';\n}\n\nconst key = data.key;\nconst messageId = key.id;\nconst remoteJid = key.remoteJid;\n\n// Extract participant\nlet participant = key.participant || key.remoteJid;\nif (key.participantAlt) {\n    participant = key.participantAlt;\n}\n\nconst content = data.message?.conversation || \n                data.message?.extendedTextMessage?.text || \n                data.message?.imageMessage?.caption || \n                'Media/Other';\n\nconst rawType = data.messageType || Object.keys(data.message || {})[0] || 'conversation';\nconst messageType = mapMessageType(rawType);\n\n// Extract media info\nlet mediaUrl = null;\nlet mediaPath = null;\nlet mediaSize = null;\nlet mediaMimeType = null;\n\nconst mediaMsg = data.message?.[rawType];\nif (mediaMsg && typeof mediaMsg === 'object') {\n    mediaUrl = mediaMsg.url || null;\n    mediaPath = mediaMsg.directPath || null;\n    mediaSize = mediaMsg.fileLength?.low || mediaMsg.fileLength || null;\n    mediaMimeType = mediaMsg.mimetype || null;\n}\n\n// Extract quoted message ID\nconst contextInfo = data.message?.[rawType]?.contextInfo || data.contextInfo || data.message?.extendedTextMessage?.contextInfo;\nconst quotedMessageId = contextInfo?.stanzaId || null;\n\n// Extract metadata\nconst messageContextInfo = data.message?.messageContextInfo || null;\nconst metadata = {\n    contextInfo: contextInfo,\n    messageContextInfo: messageContextInfo,\n    rawMessage: data,\n    webhookSource: 'realtime'\n};\n\nreturn [{\n    json: {\n        message_id: messageId,\n        chat_id: remoteJid,\n        chat_table_id: chat.id,\n        contact_id: contact.id,\n        instance_id: instanceId,\n        content: content,\n        from_me: key.fromMe || false,\n        timestamp_msg: data.messageTimestamp ? new Date(data.messageTimestamp * 1000).toISOString() : new Date().toISOString(),\n        status: mapStatus(data.status),\n        message_type: messageType,\n        thumbnail_path: contact.profile_pic_url,\n        media_url: mediaUrl,\n        media_path: mediaPath,\n        media_size: mediaSize,\n        media_mime_type: mediaMimeType,\n        quoted_message_id: quotedMessageId,\n        participant: participant,\n        metadata: metadata\n    }\n}];"
-            },
-            "id": "normalize-message",
-            "name": "Normalize Message",
-            "type": "n8n-nodes-base.code",
-            "typeVersion": 2,
-            "position": [
-                2000,
-                200
-            ]
-        },
-        {
-            "parameters": {
-                "method": "POST",
-                "url": "={{ $env.SUPABASE_URL }}/rest/v1/messages",
-                "authentication": "predefinedCredentialType",
-                "nodeCredentialType": "supabaseApi",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Prefer",
-                            "value": "resolution=merge-duplicates,return=representation"
-                        }
-                    ]
-                },
-                "sendBody": true,
-                "specifyBody": "json",
-                "jsonBody": "={{ $json }}",
-                "options": {}
-            },
-            "id": "upsert-message",
-            "name": "Upsert Message",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
-            "position": [
-                2220,
-                200
-            ],
-            "credentials": {
-                "httpHeaderAuth": {
-                    "id": "CWBY9me7mGfNfhh5",
-                    "name": "Header Auth account"
-                },
-                "supabaseApi": {
-                    "id": "zuQ9RKLERDxelcJf",
-                    "name": "Supabase account"
-                }
-            }
+          ]
         }
-    ],
-    "connections": {
-        "Webhook": {
-            "main": [
-                [
-                    {
-                        "node": "Filter Message Events",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
+      },
+      "id": "313d5e00-367c-437c-af32-63bf7781c46f",
+      "name": "Apenas Novas Mensagens",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        -704,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/instances?name=eq.{{ encodeURIComponent($json.body.instance) }}&select=id",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
         },
-        "Filter Message Events": {
-            "main": [
-                [
-                    {
-                        "node": "Get Instance UUID",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Get Instance UUID": {
-            "main": [
-                [
-                    {
-                        "node": "Normalize Contact",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Normalize Contact": {
-            "main": [
-                [
-                    {
-                        "node": "Upsert Contact",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Upsert Contact": {
-            "main": [
-                [
-                    {
-                        "node": "Normalize Chat",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Normalize Chat": {
-            "main": [
-                [
-                    {
-                        "node": "Upsert Chat",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Upsert Chat": {
-            "main": [
-                [
-                    {
-                        "node": "Normalize Message",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Normalize Message": {
-            "main": [
-                [
-                    {
-                        "node": "Upsert Message",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
+        "options": {}
+      },
+      "id": "9fa265bd-23f9-49ad-b4eb-58d14ec8fdf6",
+      "name": "Get Instance UUID",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -480,
+        272
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "WmRiFsat1TaOUULN",
+          "name": "Supabase account"
         }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Webhook').first().json.body;\nconst data = body.data;\nconst items = $input.all();\n\n// Validação de Segurança\nif (items.length === 0 || !items[0].json) {\n    // Se não achou a instância, paramos aqui para não gerar erro em cascata\n    return []; \n}\n\nconst instanceId = items[0].json.id;\nif (!instanceId) return [];\n\n// Verifica se existe a chave 'key' (essencial para mensagens)\nif (!data || !data.key) return [];\n\nconst remoteJid = data.key.remoteJid;\nconst participant = data.key.participant || remoteJid;\n\n// Extração de Telefone Robusta\nconst jid = participant;\nconst phone = data.phoneNumber || (jid && jid.includes('@') ? jid.split('@')[0].split(':')[0] : null);\n\nif (!phone) return [];\n\nconst pushName = data.pushName || data.key.pushName;\nconst name = pushName || phone;\nconst pic = data.senderPhoto || null;\n\nconst isGroup = remoteJid.includes('@g.us');\n\nreturn [{\n    json: {\n        phone: phone,\n        name: name,\n        push_name: pushName,\n        profile_pic_url: pic,\n        is_group: isGroup,\n        instance_id: instanceId\n    }\n}];"
+      },
+      "id": "a8a329c6-f640-4dad-9982-1677695f945f",
+      "name": "Normalize Contact",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -272,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/contacts?on_conflict=phone,instance_id",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "2d862d1b-1ef2-4d40-979e-20c66f326b2a",
+      "name": "Upsert Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -48,
+        272
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "WmRiFsat1TaOUULN",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Webhook').first().json.body;\nconst data = body.data;\nconst instanceId = $('Get Instance UUID').first().json.id;\n// Garante que pegamos o ID do contato corretamente do nó anterior\nconst contactData = $input.all()[0].json;\nconst contactId = contactData.id;\n\nconst remoteJid = data.key.remoteJid;\n\n// Extração segura de conteúdo\nconst messageContent = data.message?.conversation || \n                       data.message?.extendedTextMessage?.text || \n                       data.message?.imageMessage?.caption || \n                       'Media/Other';\n\nreturn [{\n    json: {\n        chat_id: remoteJid,\n        instance_id: instanceId,\n        contact_id: contactId,\n        last_message: messageContent,\n        last_message_time: new Date().toISOString()\n    }\n}];"
+      },
+      "id": "6d3847dd-7e9a-449a-a563-f78af6de9064",
+      "name": "Normalize Chat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/chats?on_conflict=chat_id,instance_id",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "0661e863-fbd4-4870-8913-e02f75a90e1c",
+      "name": "Upsert Chat",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        400,
+        272
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "WmRiFsat1TaOUULN",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Webhook').first().json.body;\nconst data = body.data;\nconst instanceId = $('Get Instance UUID').first().json.id;\nconst contact = $('Upsert Contact').first().json;\nconst chat = $('Upsert Chat').first().json;\n\nfunction mapMessageType(evoType) {\n    const typeMap = {\n        'conversation': 'text',\n        'extendedTextMessage': 'text',\n        'imageMessage': 'image',\n        'videoMessage': 'video',\n        'audioMessage': 'audio',\n        'documentMessage': 'document',\n        'stickerMessage': 'sticker',\n        'locationMessage': 'location',\n        'contactMessage': 'contact',\n        'protocolMessage': 'system',\n        'ephemeralMessage': 'system',\n        'ptvMessage': 'video'\n    };\n    return typeMap[evoType] || 'text';\n}\n\nfunction mapStatus(status) {\n    const statusMap = {\n        'PENDING': 'sent',\n        'SERVER_ACK': 'sent',\n        'DELIVERY_ACK': 'delivered',\n        'READ': 'read',\n        'PLAY': 'read',\n        'ERROR': 'error',\n        'DELETED': 'error',\n        'SENT': 'sent'\n    };\n    return statusMap[status] || 'sent';\n}\n\nconst key = data.key;\nconst messageId = key.id;\nconst remoteJid = key.remoteJid;\n\nlet participant = key.participant || key.remoteJid;\nif (key.participantAlt) {\n    participant = key.participantAlt;\n}\n\nconst content = data.message?.conversation || \n                data.message?.extendedTextMessage?.text || \n                data.message?.imageMessage?.caption || \n                'Media/Other';\n\nconst rawType = data.messageType || Object.keys(data.message || {})[0] || 'conversation';\nconst messageType = mapMessageType(rawType);\n\nlet mediaUrl = null;\nlet mediaPath = null;\nlet mediaSize = null;\nlet mediaMimeType = null;\n\nconst mediaMsg = data.message?.[rawType];\nif (mediaMsg && typeof mediaMsg === 'object') {\n    mediaUrl = mediaMsg.url || null;\n    mediaPath = mediaMsg.directPath || null;\n    mediaSize = mediaMsg.fileLength?.low || mediaMsg.fileLength || null;\n    mediaMimeType = mediaMsg.mimetype || null;\n}\n\nconst contextInfo = data.message?.[rawType]?.contextInfo || data.contextInfo || data.message?.extendedTextMessage?.contextInfo;\nconst quotedMessageId = contextInfo?.stanzaId || null;\n\nconst metadata = {\n    contextInfo: contextInfo,\n    rawMessage: data,\n    webhookSource: 'realtime'\n};\n\nreturn [{\n    json: {\n        message_id: messageId,\n        chat_id: remoteJid,\n        chat_table_id: chat.id,\n        contact_id: contact.id,\n        instance_id: instanceId,\n        content: content,\n        from_me: key.fromMe || false,\n        timestamp_msg: data.messageTimestamp ? new Date(data.messageTimestamp * 1000).toISOString() : new Date().toISOString(),\n        status: mapStatus(data.status),\n        message_type: messageType,\n        thumbnail_path: contact.profile_pic_url,\n        media_url: mediaUrl,\n        media_path: mediaPath,\n        media_size: mediaSize,\n        media_mime_type: mediaMimeType,\n        quoted_message_id: quotedMessageId,\n        participant: participant,\n        metadata: metadata\n    }\n}];"
+      },
+      "id": "dab32b07-23eb-4041-a422-bb9f6d456142",
+      "name": "Normalize Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "3a5e3875-7b20-4696-b362-d407d5589654",
+      "name": "Upsert Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        848,
+        272
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "WmRiFsat1TaOUULN",
+          "name": "Supabase account"
+        }
+      }
     }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Apenas Novas Mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apenas Novas Mensagens": {
+      "main": [
+        [
+          {
+            "node": "Get Instance UUID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Instance UUID": {
+      "main": [
+        [
+          {
+            "node": "Normalize Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Contact": {
+      "main": [
+        [
+          {
+            "node": "Upsert Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Contact": {
+      "main": [
+        [
+          {
+            "node": "Normalize Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Chat": {
+      "main": [
+        [
+          {
+            "node": "Upsert Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Chat": {
+      "main": [
+        [
+          {
+            "node": "Normalize Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Message": {
+      "main": [
+        [
+          {
+            "node": "Upsert Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "09efd7a3e003e016bbd843c1d3a4510babc9cd034508c173e66f4175f21ae569"
+  }
 }
