@@ -2,54 +2,54 @@
   "nodes": [
     {
       "parameters": {},
-      "id": "306c529f-e39e-4baf-b444-f937df042eb0",
+      "id": "607b5f36-2a31-4257-a3c0-85b4ccc44e9b",
       "name": "Ao Clicar em Executar",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        -4112,
+        -5008,
         224
       ]
     },
     {
       "parameters": {
-        "url": "={{ $env.EVOLUTION_API_URL }}/instance/fetchInstances",
+        "url": "https://evo.zapneuronz.com.br/instance/fetchInstances",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
       },
-      "id": "e35194b6-855f-48cf-99fa-d11f53713ee4",
+      "id": "d25a7233-a125-4d18-82fc-fc9f575a9915",
       "name": "Fetch Instances",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        -3872,
+        -4784,
         224
       ],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "bdV4KzVLOl2zXjTm",
+          "id": "wDjVZ1Dbe26c2YVQ",
           "name": "Header Auth account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "const supabaseData = [];\nconst FALLBACK_USER_ID = $env.DEFAULT_OWNER_ID || '00000000-0000-0000-0000-000000000000';\n\nfunction mapStatus(status, connectionStatus) {\n    let s = (connectionStatus || status || '').toLowerCase();\n    if (s === 'open' || s === 'connected') return 'connected';\n    if (s === 'close' || s === 'disconnected') return 'disconnected';\n    if (s === 'connecting') return 'connecting';\n    if (s === 'qr' || s === 'qrcode') return 'qr_code';\n    return 'disconnected';\n}\n\nfunction processInstance(inst) {\n    const name = inst.instanceName || inst.name;\n    \n    if (name) {\n        const now = new Date().toISOString();\n        supabaseData.push({\n            name: name,\n            evolution_instance_id: inst.instanceId || inst.id || inst.name,\n            phone: inst.phoneNumber || (inst.ownerJid && inst.ownerJid.includes('@') ? inst.ownerJid.split('@')[0].split(':')[0] : (inst.owner && !inst.owner.includes('@') ? inst.owner : null)),\n            status: mapStatus(inst.status, inst.connectionStatus),\n            qr_code: inst.qrcode || inst.base64 || null,\n            profile_pic_url: inst.profilePictureUrl || null,\n            webhook_url: inst.webhook || (inst.webhookUrl ? inst.webhookUrl : null),\n            settings: inst.settings ? JSON.stringify(inst.settings) : null,\n            last_seen: now,\n            user_id: inst.owner || inst.user_id || inst.metadata?.user_id || FALLBACK_USER_ID,\n            created_at: now,\n            updated_at: now\n        });\n    }\n}\n\nfor (const item of items) {\n    const data = item.json;\n    if (Array.isArray(data)) {\n        for (const subItem of data) {\n            processInstance(subItem.instance || subItem);\n        }\n    } else {\n        processInstance(data.instance || data);\n    }\n}\n\nreturn [{ json: { data: supabaseData } }];"
+        "jsCode": "const supabaseData = [];\n// --- CONFIGURAÇÃO: ESCOLHA A INSTÂNCIA AQUI ---\n// Deixe vazio '' para processar TODAS.\n// Coloque o nome entre aspas para processar SÓ UMA.\nconst INSTANCE_TO_SYNC = 'TXHM'; \n// ------------------------------------------------\n\nconst FALLBACK_USER_ID = $env.DEFAULT_OWNER_ID || '512c51e1-f250-46f0-826f-824ffe112c6a';\n\nfunction mapStatus(status, connectionStatus) {\n    let s = (connectionStatus || status || '').toLowerCase();\n    if (s === 'open' || s === 'connected') return 'connected';\n    if (s === 'close' || s === 'disconnected') return 'disconnected';\n    if (s === 'connecting') return 'connecting';\n    if (s === 'qr' || s === 'qrcode') return 'qr_code';\n    return 'disconnected';\n}\n\nfunction processInstance(inst) {\n    const name = inst.instanceName || inst.name;\n    \n    // === LÓGICA DE FILTRO ===\n    // Se definimos um nome alvo e o nome atual for diferente, ignoramos.\n    if (INSTANCE_TO_SYNC && name !== INSTANCE_TO_SYNC) {\n        return;\n    }\n    // ========================\n    \n    if (name) {\n        const now = new Date().toISOString();\n        supabaseData.push({\n            name: name,\n            evolution_instance_id: inst.instanceId || inst.id || inst.name,\n            phone: inst.phoneNumber || (inst.ownerJid && inst.ownerJid.includes('@') ? inst.ownerJid.split('@')[0].split(':')[0] : (inst.owner && !inst.owner.includes('@') ? inst.owner : null)),\n            status: mapStatus(inst.status, inst.connectionStatus),\n            qr_code: inst.qrcode || inst.base64 || null,\n            profile_pic_url: inst.profilePictureUrl || null,\n            webhook_url: inst.webhook || (inst.webhookUrl ? inst.webhookUrl : null),\n            settings: inst.settings ? JSON.stringify(inst.settings) : null,\n            last_seen: now,\n            user_id: inst.owner || inst.user_id || inst.metadata?.user_id || FALLBACK_USER_ID,\n            created_at: now,\n            updated_at: now\n        });\n    }\n}\n\nfor (const item of items) {\n    const data = item.json;\n    if (Array.isArray(data)) {\n        for (const subItem of data) {\n            processInstance(subItem.instance || subItem);\n        }\n    } else {\n        processInstance(data.instance || data);\n    }\n}\n\nreturn [{ json: { data: supabaseData } }];"
       },
-      "id": "c7962a8d-102f-41fb-8291-769a007a646e",
+      "id": "837ef135-0ca3-4c0b-baad-4a8a79039b76",
       "name": "Prepare Instance Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3664,
+        -4560,
         224
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/instances?on_conflict=evolution_instance_id",
+        "url": "https://agsvbhzvlwygpnxygtnt.supabase.co/rest/v1/instances?on_conflict=evolution_instance_id",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "sendHeaders": true,
@@ -66,17 +66,17 @@
         "jsonBody": "={{ $json.data }}",
         "options": {}
       },
-      "id": "494c549d-2f95-49e6-8ebb-eb95d8172aae",
+      "id": "e58dae33-4358-4eba-9bbf-7f93b3c755b0",
       "name": "Upsert Instances",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        -3472,
+        -4352,
         224
       ],
       "credentials": {
         "supabaseApi": {
-          "id": "WmRiFsat1TaOUULN",
+          "id": "5giRdkHvRJY0ru7a",
           "name": "Supabase account"
         }
       }
@@ -85,56 +85,77 @@
       "parameters": {
         "options": {}
       },
-      "id": "7d4bdb63-5f33-4f70-b869-8417eefd7d08",
+      "id": "e51fdacc-692e-411a-aad3-f5adf9d27346",
       "name": "Split Instances",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -3264,
+        -4144,
         224
       ]
     },
     {
       "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.name }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "92397236-2352-4d75-8534-ea1d0f018918",
+      "name": "Check Name Integrity",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -3904,
+        224
+      ],
+      "notes": "Impede erro 404 se nome vier vazio"
+    },
+    {
+      "parameters": {
         "method": "POST",
-        "url": "={{ $env.EVOLUTION_API_URL }}/chat/findContacts/{{ $json.name }}",
+        "url": "=https://evo.zapneuronz.com.br/chat/findContacts/{{ $('Split Instances').item.json.name }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
       },
-      "id": "526ad8f3-0e21-44b4-ab47-138ce2a6b76e",
+      "id": "2b9d26ba-dbd9-4cee-8d22-4604e77cbdb5",
       "name": "Get Contacts",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        -3040,
+        -3664,
         128
       ],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "bdV4KzVLOl2zXjTm",
+          "id": "wDjVZ1Dbe26c2YVQ",
           "name": "Header Auth account"
         }
       }
     },
     {
       "parameters": {
-        "url": "={{ $env.EVOLUTION_API_URL }}/group/fetchAllGroups/{{ $json.name }}?getParticipants=false",
+        "url": "=https://evo.zapneuronz.com.br/group/fetchAllGroups/{{ $('Split Instances').item.json.name }}?getParticipants=false",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
       },
-      "id": "2404ddd0-8a2b-48d5-a1c4-888c48916b71",
+      "id": "128dff38-18be-4049-ac17-34f447d8f081",
       "name": "Get Groups",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        -3040,
-        336
+        -3664,
+        320
       ],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "bdV4KzVLOl2zXjTm",
+          "id": "wDjVZ1Dbe26c2YVQ",
           "name": "Header Auth account"
         }
       }
@@ -151,12 +172,12 @@
         },
         "options": {}
       },
-      "id": "67f06f45-d5e7-4bbb-9b02-ea459bd13286",
+      "id": "f5e73d01-2bef-4a96-afea-d5da4b4a2c6d",
       "name": "Add Instance ID Contacts",
       "type": "n8n-nodes-base.set",
       "typeVersion": 1,
       "position": [
-        -2880,
+        -3472,
         128
       ]
     },
@@ -172,43 +193,57 @@
         },
         "options": {}
       },
-      "id": "a5eb2d88-7ad4-4e0a-b3d8-79aaa9d932e7",
+      "id": "b425328f-f4ee-4174-b265-9ea21a507afb",
       "name": "Add Instance ID Groups",
       "type": "n8n-nodes-base.set",
       "typeVersion": 1,
       "position": [
-        -2880,
-        336
+        -3472,
+        320
       ]
     },
     {
       "parameters": {},
-      "id": "721880b2-0c01-48c3-8a91-035a8bcd239e",
+      "id": "282d28c6-9661-4132-bc35-0ca11ce6118e",
       "name": "Merge Contacts & Groups",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
       "position": [
-        -2688,
+        -3280,
         224
       ]
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nif (items.length === 0) return [];\n\nlet instanceId = items[0].json.instance_id;\nif (!instanceId) {\n    try {\n        instanceId = $('Split Instances').first().json.id;\n    } catch (e) {}\n}\n\nconst contactsMap = {};\n\nfunction getPhone(item) {\n    if (item.phoneNumber) return item.phoneNumber;\n    const jid = item.remoteJid || item.jid || item.id;\n    if (jid && jid.includes('@')) {\n        return jid.split('@')[0].split(':')[0];\n    }\n    return null;\n}\n\nitems.forEach((itemObj, index) => {\n    const item = itemObj.json;\n    const phone = getPhone(item);\n    if (!phone) return;\n\n    const id = item.remoteJid || item.id || item.jid;\n    const isGroup = item.type === 'group' || item.isGroup === true || (id && id.includes('@g.us'));\n    const pic = item.profilePicUrl || item.profilePictureUrl || null;\n    \n    const nameInAgenda = item.name; \n    const pushName = item.pushName || item.notify || item.verifiedName;\n    const subject = item.subject;\n\n    let finalName = nameInAgenda || subject;\n    if (!finalName || finalName === phone) {\n        if (pushName) finalName = pushName;\n    }\n    if (!finalName) finalName = phone;\n\n    if (!contactsMap[phone]) {\n        contactsMap[phone] = {\n            json: {\n                phone: phone,\n                name: finalName,\n                push_name: pushName,\n                profile_pic_url: pic,\n                is_group: isGroup,\n                group_metadata: isGroup ? item : null,\n                instance_id: instanceId\n            },\n            pairedItem: { item: 0 }\n        };\n    } else {\n        const existing = contactsMap[phone].json;\n        if (pic) existing.profile_pic_url = pic;\n        if (finalName && finalName !== phone && existing.name === phone) existing.name = finalName;\n    }\n});\n\nreturn Object.values(contactsMap);"
+        "jsCode": "const items = $input.all();\nif (items.length === 0) return [];\n\nlet instanceId =\n    items[0].json.instance_id ||\n    items[0].json.instanceId ||\n    $('Split Instances').item.json.id ||\n    null;\n\nconst contactsMap = {};\n\nfunction getPhone(item) {\n    if (item.phoneNumber) return item.phoneNumber;\n\n    const jid = item.remoteJid || item.jid;\n    if (jid && jid.includes('@')) {\n        return jid.split('@')[0].split(':')[0];\n    }\n    return null;\n}\n\nfunction resolveName(item, phone, isGroup) {\n    if (isGroup) {\n        return item.pushName ||\n        item.verifiedName ||\n        phone;\n    }\n\n    return (\n        item.pushName ||\n        item.verifiedName ||\n        phone\n    );\n}\n\nitems.forEach(obj => {\n    const item = obj.json;\n\n    const jid = item.remoteJid || item.jid;\n    const phone = getPhone(item);\n\n    const isGroup =\n        item.type === 'group' ||\n        item.isGroup === true ||\n        (jid && jid.includes('@g.us'));\n\n    const key = isGroup ? jid : phone;\n    if (!key) return;\n\n    const pic = item.profilePicUrl || item.profilePictureUrl || null;\n    const finalName = resolveName(item, phone, isGroup);\n\n    if (!contactsMap[key]) {\n        contactsMap[key] = {\n            json: {\n                phone,\n                name: finalName,\n                push_name: item.pushName,\n                profile_pic_url: pic,\n                is_group: isGroup,\n                group_metadata: isGroup\n                    ? {\n                        id: jid,\n                        subject: item.subject,\n                        participants: item.participants\n                    }\n                    : null,\n                instance_id: instanceId\n            },\n            pairedItem: { item: 0 }\n        };\n        return;\n    }\n});\n\nreturn Object.values(contactsMap);\n"
       },
-      "id": "aacd11eb-99e5-4064-824d-2bf5a35e014b",
+      "id": "c555b612-2256-4faf-9724-88f56b32b37c",
       "name": "Normalize Contacts",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2512,
+        -3104,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 500,
+        "options": {}
+      },
+      "id": "1254406e-f005-48e4-a0ad-ff1b8483b4e0",
+      "name": "Split Contacts Batch",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -2912,
         224
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/contacts?on_conflict=phone,instance_id",
+        "url": "=https://agsvbhzvlwygpnxygtnt.supabase.co/rest/v1/contacts?on_conflict=phone,instance_id",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "sendHeaders": true,
@@ -225,74 +260,78 @@
         "jsonBody": "={{ $json }}",
         "options": {}
       },
-      "id": "e10412e1-19ef-497d-ad44-422306b064a9",
+      "id": "f3891d96-2b64-4967-9757-e96261c2834f",
       "name": "Upsert Contacts",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        -2304,
-        224
+        -2704,
+        336
       ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
       "credentials": {
         "supabaseApi": {
-          "id": "WmRiFsat1TaOUULN",
+          "id": "5giRdkHvRJY0ru7a",
           "name": "Supabase account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "const instanceId = $('Split Instances').item.json.id;\nconst instanceName = $('Split Instances').item.json.name;\nconst contacts = $input.all().map(i => i.json).flat();\nconst contactMap = {};\n\ncontacts.forEach(c => {\n    if (c.phone && c.id) {\n        contactMap[c.phone] = {\n            id: c.id,\n            profile_pic_url: c.profile_pic_url\n        };\n    }\n});\n\nreturn [{\n    json: { contactMap, instanceId, instanceName },\n    pairedItem: { item: 0 }\n}];"
+        "jsCode": "// --- Configuração ---\nconst UPSERT_NODE_NAME = 'Upsert Contacts'; // Nome exato do nó HTTP\n\n// --- Recuperação de Dados da Instância ---\nconst splitItem = $('Split Instances').item;\nconst instanceId = splitItem ? splitItem.json.id : null;\nconst instanceName = splitItem ? splitItem.json.name : null;\n\nlet contacts = [];\n\n// --- Recuperação Resiliente dos Contatos ---\ntry {\n    // Tenta buscar os dados de todas as execuções do Upsert (Lotes)\n    contacts = $(UPSERT_NODE_NAME).all().map(i => i.json).flat();\n} catch (error) {\n    contacts = [];\n}\n\n// --- Criação do Mapa ---\nconst contactMap = {};\n\nif (contacts.length > 0) {\n    contacts.forEach(c => {\n        if (c.phone && c.id) {\n            contactMap[c.phone] = {\n                id: c.id,\n                profile_pic_url: c.profile_pic_url\n            };\n        }\n    });\n}\n\n// --- Retorno ---\nreturn [{\n    json: { \n        contactMap, \n        instanceId, \n        instanceName, \n        _debug_count: contacts.length \n    },\n    pairedItem: { item: 0 }\n}];"
       },
-      "id": "211393dc-004a-40a6-a7b1-8dce7c909452",
+      "id": "33300416-0857-4157-b951-993cca7efaed",
       "name": "Create Contact Map",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2112,
+        -2400,
         224
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.EVOLUTION_API_URL }}/chat/findChats/{{ $json.instanceName.trim() }}",
+        "url": "=https://evo.zapneuronz.com.br/chat/findChats/{{ $('Split Instances').item.json.name }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
       },
-      "id": "0b10cb7b-5d57-4987-9e34-fc91b8cd4990",
+      "id": "13d394e2-0a27-4ede-a31c-6a8b7ceaa85b",
       "name": "Get Chats",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        -1904,
+        -2192,
         224
       ],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "bdV4KzVLOl2zXjTm",
+          "id": "wDjVZ1Dbe26c2YVQ",
           "name": "Header Auth account"
         }
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "const instanceId = $('Create Contact Map').first().json.instanceId;\nconst contactMap = $('Create Contact Map').first().json.contactMap;\nconst chats = $input.all().map(i => i.json);\nconst normalizedChats = [];\n\nchats.forEach(chat => {\n    if (Array.isArray(chat)) {\n        chat.forEach(c => processChat(c));\n    } else {\n        processChat(chat);\n    }\n});\n\nfunction processChat(c) {\n    const remoteJid = c.remoteJid || c.id;\n    if (!remoteJid) return;\n    \n    const phone = remoteJid.split('@')[0].split(':')[0];\n    const contactData = contactMap[phone];\n    const contactId = contactData ? contactData.id : null;\n    \n    const lastMsgObj = c.lastMessage;\n    const content = lastMsgObj?.message?.conversation || \n                    lastMsgObj?.message?.extendedTextMessage?.text || \n                    lastMsgObj?.message?.imageMessage?.caption || \n                    (lastMsgObj ? 'Media/Other' : null);\n\n    normalizedChats.push({\n        chat_id: remoteJid,\n        instance_id: instanceId,\n        contact_id: contactId,\n        unread_count: c.unreadCount || 0,\n        last_message_time: c.conversationTimestamp ? new Date(c.conversationTimestamp * 1000).toISOString() : new Date().toISOString(),\n        last_message: content\n    });\n}\n\nreturn normalizedChats;"
+        "jsCode": "const items = $input.all();\nconst mapData = $('Create Contact Map').first().json;\nconst instanceId = mapData.instanceId;\nconst contactMap = mapData.contactMap || {};\nconst instanceName = mapData.instanceName;\n\n// --- MODO FALLBACK (RECUPERAÇÃO) ---\nlet useFallback = false;\nif (items.length === 0) useFallback = true;\nelse {\n    const first = items[0].json;\n    if (first.error || first.status === 500 || (first.message && typeof first.message === 'string' && first.message.includes('500'))) {\n        useFallback = true;\n    }\n}\n\nconst normalizedChats = [];\n\nif (useFallback) {\n    // === RECUPERAÇÃO VIA CONTATOS ===\n    Object.keys(contactMap).forEach(phone => {\n        const contactId = contactMap[phone].id;\n        const remoteJid = `${phone}@s.whatsapp.net`;\n        \n        normalizedChats.push({\n            chat_id: remoteJid,\n            instance_id: instanceId,\n            contact_id: contactId,\n            unread_count: 0,\n            last_message_time: new Date().toISOString(),\n            last_message: { text: 'Sync Fallback (API Error)' }\n        });\n    });\n} else {\n    // === FLUXO NORMAL ===\n    const chats = items.map(i => i.json).flat();\n    chats.forEach(c => {\n        if (!c || typeof c !== 'object') return;\n        const remoteJid = c.remoteJid || c.id;\n        if (!remoteJid) return;\n        \n        const phone = remoteJid.split('@')[0].split(':')[0];\n        const contactData = contactMap[phone];\n        const contactId = contactData ? contactData.id : null;\n        \n        let content = null;\n        try {\n            if (c.lastMessage) content = JSON.parse(JSON.stringify(c.lastMessage));\n        } catch(e) {}\n\n        normalizedChats.push({\n            chat_id: remoteJid,\n            instance_id: instanceId,\n            contact_id: contactId,\n            unread_count: c.unreadCount || 0,\n            last_message_time: c.conversationTimestamp ? new Date(c.conversationTimestamp * 1000).toISOString() : new Date().toISOString(),\n            last_message: content\n        });\n    });\n}\n\nreturn normalizedChats;"
       },
-      "id": "7254498a-1fb4-4815-84dd-1b66566362e6",
+      "id": "8844043c-f3a9-474c-be08-036dd7b07e5f",
       "name": "Normalize Chats",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1712,
+        -1984,
         224
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/chats?on_conflict=chat_id,instance_id",
+        "url": "=https://agsvbhzvlwygpnxygtnt.supabase.co/rest/v1/chats?on_conflict=chat_id,instance_id",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "sendHeaders": true,
@@ -309,31 +348,31 @@
         "jsonBody": "={{ $json }}",
         "options": {}
       },
-      "id": "aa38be1a-8cd8-4b40-9909-f11ef82493ad",
+      "id": "fd4e317c-c039-4e1e-bc35-1835a9da6ef3",
       "name": "Upsert Chats",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        -1504,
+        -1792,
         224
       ],
       "credentials": {
         "supabaseApi": {
-          "id": "WmRiFsat1TaOUULN",
+          "id": "5giRdkHvRJY0ru7a",
           "name": "Supabase account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// 1. Busca Resiliente do Nome da Instância\nlet instanceName = null;\n\ntry {\n    const prevNode = $('Create Contact Map').first().json;\n    instanceName = prevNode.instanceName || prevNode.instance_name;\n} catch (e) {}\n\nif (!instanceName) {\n    try {\n        const splitNode = $('Split Instances').item.json;\n        instanceName = splitNode.name || splitNode.instanceName || splitNode.id;\n    } catch (e) {}\n}\n\n// Se não achou nome, o nó IF vai barrar. Aqui só garantimos estrutura.\nconst safeInstanceName = instanceName ? encodeURIComponent(String(instanceName).trim()) : null;\n\nconst items = $input.all();\nif (items.length === 0) return [];\n\nreturn items.map((item, index) => {\n    const c = Array.isArray(item.json) ? item.json[0] : item.json;\n    if (!c || !c.chat_id) return { json: { _ignore: true } };\n\n    c.instanceName = safeInstanceName;\n    return {\n        json: c,\n        pairedItem: { item: index }\n    };\n}).filter(i => !i.json._ignore);"
+        "jsCode": "// 1. Busca Resiliente do Nome da Instância\nlet instanceName = null;\n\ntry {\n    const prevNode = $('Create Contact Map').first().json;\n    instanceName = prevNode.instanceName || prevNode.instance_name;\n} catch (e) {}\n\nif (!instanceName) {\n    try {\n        const splitNode = $('Split Instances').item.json;\n        instanceName = splitNode.name || splitNode.instanceName || splitNode.id;\n    } catch (e) {}\n}\n\n// Se não achou nome, o nó IF vai barrar. Aqui só garantimos estrutura.\nconst safeInstanceName = instanceName ? encodeURIComponent(String(instanceName).trim()) : null;\n\nconst items = $input.all();\nif (items.length === 0) return [];\n\nreturn items.map((item, index) => {\n    const c = Array.isArray(item.json) ? item.json[0] : item.json;\n    // Se o item for vazio ou erro, ignora\n    if (!c || !c.chat_id) return { json: { _ignore: true } };\n\n    c.instanceName = safeInstanceName;\n    return {\n        json: c,\n        pairedItem: { item: index }\n    };\n}).filter(i => !i.json._ignore);"
       },
-      "id": "7b17c9ec-5d82-4b04-9357-f54e8a4df4a5",
+      "id": "490f50a3-e8d1-4b04-b756-de6ece348ff0",
       "name": "Create Chat Map",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1312,
+        -1584,
         224
       ]
     },
@@ -341,12 +380,12 @@
       "parameters": {
         "options": {}
       },
-      "id": "2473c5bd-84de-4055-a7eb-dea374ff58be",
+      "id": "f9d618e5-cbf8-4996-8a80-d4776c83569b",
       "name": "Split Chats",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -1104,
+        -1392,
         224
       ]
     },
@@ -361,12 +400,12 @@
           ]
         }
       },
-      "id": "8440a7c9-8e34-4f2b-a10d-5841298649e7",
+      "id": "4d78ac91-cb17-4524-b360-9648094b82c7",
       "name": "Check Instance Name",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        -880,
+        -1168,
         224
       ],
       "notes": "Válvula de Segurança para não gerar 404"
@@ -374,7 +413,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.EVOLUTION_API_URL }}/chat/findMessages/{{ $json.instanceName }}",
+        "url": "=https://evo.zapneuronz.com.br/chat/findMessages/{{ $json.instanceName }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -382,38 +421,38 @@
         "jsonBody": "={{ { \"where\": { \"key\": { \"remoteJid\": $json.chat_id } }, \"limit\": 60 } }}",
         "options": {}
       },
-      "id": "12932282-7fa2-4d9c-838e-2db98c04bd13",
+      "id": "f6579dee-7543-46cb-8ead-200bf7c4c959",
       "name": "Get Messages",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        -672,
+        -944,
         224
       ],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "bdV4KzVLOl2zXjTm",
+          "id": "wDjVZ1Dbe26c2YVQ",
           "name": "Header Auth account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "const instanceId = $('Split Instances').item.json.id;\nconst chatUuid = $('Split Chats').item.json.id;\nconst chatRemoteJid = $('Split Chats').item.json.chat_id;\nconst contactMapData = $('Create Contact Map').first().json.contactMap;\nconst items = $input.all();\nconst normalizedMessages = [];\n\nfunction mapMessageType(evoType) {\n    const typeMap = {\n        'conversation': 'text',\n        'extendedTextMessage': 'text',\n        'imageMessage': 'image',\n        'videoMessage': 'video',\n        'audioMessage': 'audio',\n        'documentMessage': 'document',\n        'stickerMessage': 'sticker',\n        'locationMessage': 'location',\n        'contactMessage': 'contact',\n        'protocolMessage': 'system',\n        'ephemeralMessage': 'system',\n        'ptvMessage': 'video'\n    };\n    return typeMap[evoType] || 'text';\n}\n\nitems.forEach((itemObj, index) => {\n    const data = itemObj.json;\n    let messages = [];\n    if (data.messages && data.messages.records) {\n        messages = data.messages.records;\n    } else if (Array.isArray(data)) {\n        messages = data;\n    } else {\n        messages = [data];\n    }\n    messages.forEach(m => processMessage(m, index));\n});\n\nfunction processMessage(m, parentIndex) {\n    const key = m.key || {};\n    const messageId = key.id;\n    if (!messageId) return;\n    \n    let participant = key.participant || key.remoteJid;\n    if (key.participantAlt) participant = key.participantAlt;\n    const participantPhone = participant ? participant.split('@')[0].split(':')[0] : null;\n    const contactData = participantPhone ? contactMapData[participantPhone] : null;\n    const contactId = contactData ? contactData.id : null;\n    \n    const content = m.message?.conversation || m.message?.extendedTextMessage?.text || m.message?.imageMessage?.caption || 'Media/Other';\n    const rawType = Object.keys(m.message || {})[0] || 'conversation';\n    const messageType = mapMessageType(rawType);\n    \n    let mediaUrl = null;\n    const mediaMsg = m.message?.[rawType];\n    if (mediaMsg && typeof mediaMsg === 'object') {\n        mediaUrl = mediaMsg.url || null;\n    }\n\n    normalizedMessages.push({\n        json: {\n            message_id: messageId,\n            chat_id: chatRemoteJid,\n            chat_table_id: chatUuid,\n            contact_id: contactId,\n            instance_id: instanceId,\n            content: content,\n            from_me: key.fromMe || false,\n            timestamp_msg: m.messageTimestamp ? new Date(m.messageTimestamp * 1000).toISOString() : new Date().toISOString(),\n            status: m.status || 'delivered',\n            message_type: messageType,\n            media_url: mediaUrl,\n            participant: participant,\n            metadata: { rawMessage: m, webhookSource: 'initial_sync' }\n        },\n        pairedItem: { item: parentIndex }\n    });\n}\n\nreturn normalizedMessages;"
+        "jsCode": "const instanceId = $('Split Instances').item.json.id;\nconst chatUuid = $('Split Chats').item.json.id;\nconst chatRemoteJid = $('Split Chats').item.json.chat_id;\nconst contactMapData = $('Create Contact Map').first().json.contactMap;\nconst items = $input.all();\nconst normalizedMessages = [];\n\nfunction mapMessageType(evoType) {\n    const typeMap = {\n        'conversation': 'text',\n        'extendedTextMessage': 'text',\n        'imageMessage': 'image',\n        'videoMessage': 'video',\n        'audioMessage': 'audio',\n        'documentMessage': 'document',\n        'stickerMessage': 'sticker',\n        'locationMessage': 'location',\n        'contactMessage': 'contact',\n        'protocolMessage': 'system',\n        'ephemeralMessage': 'system',\n        'ptvMessage': 'video'\n    };\n    return typeMap[evoType] || 'text';\n}\n\nitems.forEach((itemObj, index) => {\n    const data = itemObj.json;\n    let messages = [];\n    if (data.messages && data.messages.records) {\n        messages = data.messages.records;\n    } else if (Array.isArray(data)) {\n        messages = data;\n    } else {\n        messages = [data];\n    }\n    messages.forEach(m => processMessage(m, index));\n});\n\nfunction processMessage(m, parentIndex) {\n    const key = m.key || {};\n    const messageId = key.id;\n    if (!messageId) return;\n    \n    let participant = key.participant || key.remoteJid;\n    if (key.participantAlt) participant = key.participantAlt;\n    const participantPhone = participant ? participant.split('@')[0].split(':')[0] : null;\n    \n    const contactData = participantPhone ? contactMapData[participantPhone] : null;\n    const contactId = contactData ? contactData.id : null;\n    \n    const content = m.message?.conversation || m.message?.extendedTextMessage?.text || m.message?.imageMessage?.caption || 'Media/Other';\n    const rawType = Object.keys(m.message || {})[0] || 'conversation';\n    const messageType = mapMessageType(rawType);\n    \n    let mediaUrl = null;\n    const mediaMsg = m.message?.[rawType];\n    if (mediaMsg && typeof mediaMsg === 'object') {\n        mediaUrl = mediaMsg.url || null;\n    }\n\n    normalizedMessages.push({\n        json: {\n            message_id: messageId,\n            chat_id: chatRemoteJid,\n            chat_table_id: chatUuid,\n            contact_id: contactId,\n            instance_id: instanceId,\n            content: content,\n            from_me: key.fromMe || false,\n            timestamp_msg: m.messageTimestamp ? new Date(m.messageTimestamp * 1000).toISOString() : new Date().toISOString(),\n            status: m.status || 'delivered',\n            message_type: messageType,\n            media_url: mediaUrl,\n            participant: participant,\n            metadata: { rawMessage: m, webhookSource: 'initial_sync' }\n        },\n        pairedItem: { item: parentIndex }\n    });\n}\n\nreturn normalizedMessages;"
       },
-      "id": "c24c1113-3706-417d-8bec-77c6d002ee1f",
+      "id": "f2cd4f67-e2ce-46e0-aee0-802020293606",
       "name": "Normalize Messages",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -448,
+        -720,
         224
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/messages?on_conflict=message_id,chat_id",
+        "url": "=https://agsvbhzvlwygpnxygtnt.supabase.co/rest/v1/messages?on_conflict=message_id,chat_id",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "sendHeaders": true,
@@ -430,17 +469,18 @@
         "jsonBody": "={{ $json }}",
         "options": {}
       },
-      "id": "486422cf-547b-40de-a5e1-d364fcf3996c",
+      "id": "6467a54a-21fa-48d2-b365-a5cacc8809a4",
       "name": "Upsert Messages",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        -224,
+        -512,
         224
       ],
+      "retryOnFail": true,
       "credentials": {
         "supabaseApi": {
-          "id": "WmRiFsat1TaOUULN",
+          "id": "5giRdkHvRJY0ru7a",
           "name": "Supabase account"
         }
       }
@@ -492,6 +532,24 @@
       ]
     },
     "Split Instances": {
+      "main": [
+        [
+          {
+            "node": "Check Name Integrity",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Name Integrity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Name Integrity": {
       "main": [
         [
           {
@@ -578,6 +636,24 @@
       "main": [
         [
           {
+            "node": "Split Contacts Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Contacts Batch": {
+      "main": [
+        [
+          {
+            "node": "Create Contact Map",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Upsert Contacts",
             "type": "main",
             "index": 0
@@ -589,7 +665,7 @@
       "main": [
         [
           {
-            "node": "Create Contact Map",
+            "node": "Split Contacts Batch",
             "type": "main",
             "index": 0
           }
@@ -716,6 +792,6 @@
   },
   "pinData": {},
   "meta": {
-    "instanceId": "09efd7a3e003e016bbd843c1d3a4510babc9cd034508c173e66f4175f21ae569"
+    "instanceId": "028b54764a5e82c8feecad5f0f0b75a6ce3b8ee71394c70dfbaeff0ffd685c7c"
   }
 }
