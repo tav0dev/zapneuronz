@@ -3,18 +3,18 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "whatsapp",
+        "path": "6cf825ef-8070-452b-b0eb-97fcf79e1d97",
         "options": {}
       },
-      "id": "f4b8f0b8-f26d-449c-8749-1eef966c2457",
+      "id": "bf5e5aa2-cd49-41f2-834d-248c815b47dc",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -928,
-        336
+        496,
+        1024
       ],
-      "webhookId": "c32acbe0-7e2e-4bc9-b1f3-c671b9ff0990"
+      "webhookId": "6cf825ef-8070-452b-b0eb-97fcf79e1d97"
     },
     {
       "parameters": {
@@ -24,186 +24,2849 @@
           "rules": [
             {
               "operation": "contains",
-              "value2": "UPSERT"
+              "value2": "MESSAGES.UPSERT"
+            },
+            {
+              "value2": "CONTACTS.UPDATE",
+              "output": 2
             }
           ]
         }
       },
-      "id": "fdf18403-0187-47fb-a188-e5311293b1e9",
+      "id": "662b66c0-9ea4-4de3-a7be-d12dc64afafc",
       "name": "Apenas Novas Mensagens",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 1,
       "position": [
-        -704,
-        336
+        688,
+        992
       ]
     },
     {
       "parameters": {
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/instances?name=eq.{{ encodeURIComponent($json.body.instance) }}&select=id",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "supabaseApi",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": []
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "2d837c04-a15a-465a-abc2-6e78a71c86a0",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
         },
         "options": {}
       },
-      "id": "643a120a-5973-4bb8-bbd7-a4db6ee04ae3",
-      "name": "Get Instance UUID",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
       "position": [
-        -480,
-        336
+        1312,
+        96
       ],
+      "id": "97f49e37-d9ae-412c-b011-04df1c46407b",
+      "name": "Existe?"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "chats",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "keyValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
+            },
+            {
+              "keyName": "instance_id",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1056,
+        96
+      ],
+      "id": "de673650-21af-4b72-b097-5997ffaa63a1",
+      "name": "Chat?",
+      "alwaysOutputData": true,
       "credentials": {
         "supabaseApi": {
-          "id": "WmRiFsat1TaOUULN",
+          "id": "5giRdkHvRJY0ru7a",
           "name": "Supabase account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "const instanceItem = $input.first();\nconst instanceId = instanceItem.json.id;\nif (!instanceId) return [];\n\nconst body = $('Webhook').first().json.body;\nconst data = body.data;\nconst key = data.key || {};\n\nconst remoteJid = key.remoteJid;\nconst isGroup = remoteJid.includes('@g.us');\nconst targetJid = isGroup ? remoteJid : (key.participant || remoteJid);\n\nfunction getPhone(jid) {\n    if (!jid) return null;\n    if (jid.includes('@')) return jid.split('@')[0].split(':')[0];\n    return jid;\n}\n\nconst phone = getPhone(targetJid);\nif (!phone) return [];\n\nconst pic = data.senderPhoto || null;\nconst pushName = data.pushName || key.pushName;\nconst name = pushName || phone;\nconst jidUser = phone;\n\nreturn [{\n    json: {\n        phone: phone,\n        jid_user: jidUser,\n        name: name,\n        push_name: pushName,\n        profile_pic_url: pic,\n        is_group: isGroup,\n        instance_id: instanceId\n    }\n}];"
+        "dataType": "string",
+        "value1": "={{ $('Webhook').item.json.body.data.messageType }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "imageMessage",
+              "output": 1
+            },
+            {
+              "value2": "audioMessage",
+              "output": 2
+            },
+            {
+              "value2": "videoMessage",
+              "output": 3
+            },
+            {
+              "value2": "mediaMessage"
+            }
+          ]
+        }
       },
-      "id": "ed24f4af-6172-4c1a-bd09-22d156d4e367",
-      "name": "Normalize Contact",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "5dd92c86-d0c4-48c1-8a57-15ef670cbd49",
+      "name": "Text / Media",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
       "position": [
-        -272,
-        336
+        2448,
+        -1984
       ]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/contacts?on_conflict=phone,instance_id",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "supabaseApi",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
             {
-              "name": "Prefer",
-              "value": "resolution=merge-duplicates,return=representation"
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.id }}"
+            },
+            {
+              "fieldId": "from_me",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.fromMe }}"
+            },
+            {
+              "fieldId": "participant",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.pushName }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "=text"
+            },
+            {
+              "fieldId": "content",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.message.conversation }}"
+            },
+            {
+              "fieldId": "timestamp_msg",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $('Chat?').item.json.instance_id }}"
+            },
+            {
+              "fieldId": "chat_table_id",
+              "fieldValue": "={{ $('Chat?').item.json.id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
             }
           ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([k]) => !['jid_user', 'pairedItem'].includes(k))) }}",
-        "options": {}
+        }
       },
-      "id": "4617ae8c-5390-49e3-9fe8-cecbd242c890",
-      "name": "Upsert Contact",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
       "position": [
-        -48,
-        336
+        1744,
+        -2512
       ],
+      "id": "4d6f810a-db98-4f9a-8ed5-03d12e9920e2",
+      "name": "MSG TEXT",
       "credentials": {
         "supabaseApi": {
-          "id": "WmRiFsat1TaOUULN",
+          "id": "5giRdkHvRJY0ru7a",
           "name": "Supabase account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "const contact = $input.first().json;\nconst instanceId = contact.instance_id;\nconst contactId = contact.id;\n\nconst body = $('Webhook').first().json.body;\nconst data = body.data;\nconst key = data.key || {};\nconst remoteJid = key.remoteJid;\n\nconst messageContent = data.message?.conversation || \n                       data.message?.extendedTextMessage?.text || \n                       data.message?.imageMessage?.caption || \n                       'Media/Other';\n\nconst now = new Date();\n\nreturn [{\n    json: {\n        chat_id: remoteJid,\n        instance_id: instanceId,\n        contact_id: contactId,\n        unread_count: 0,\n        last_message_time: now.toISOString(),\n        last_message: messageContent\n    }\n}];"
-      },
-      "id": "f7e6f84c-e770-4381-9f40-61fa9b19f7b6",
-      "name": "Normalize Chat",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        176,
-        336
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/chats?on_conflict=chat_id,instance_id",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "supabaseApi",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
             {
-              "name": "Prefer",
-              "value": "resolution=merge-duplicates,return=representation"
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.id }}"
+            },
+            {
+              "fieldId": "from_me",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.fromMe }}"
+            },
+            {
+              "fieldId": "participant",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.pushName }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "=image"
+            },
+            {
+              "fieldId": "content",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.message.imageMessage.caption }}"
+            },
+            {
+              "fieldId": "timestamp_msg",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $('Chat?').item.json.instance_id }}"
+            },
+            {
+              "fieldId": "chat_table_id",
+              "fieldValue": "={{ $('Chat?').item.json.id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
+            },
+            {
+              "fieldId": "media_url",
+              "fieldValue": "https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/"
+            },
+            {
+              "fieldId": "media_path",
+              "fieldValue": "={{ $json.Key }}"
+            },
+            {
+              "fieldId": "public_media_url",
+              "fieldValue": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/{{ $json.Key }}"
             }
           ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json }}",
-        "options": {}
+        }
       },
-      "id": "08f80298-727b-4596-a357-2a0b4cfb1a35",
-      "name": "Upsert Chat",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
       "position": [
-        400,
-        336
+        3408,
+        -2144
       ],
+      "id": "d617ca82-2921-4cce-aec4-5b97f58cbf29",
+      "name": "MSG IMAGEM",
       "credentials": {
         "supabaseApi": {
-          "id": "WmRiFsat1TaOUULN",
+          "id": "5giRdkHvRJY0ru7a",
           "name": "Supabase account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "const chat = $input.first().json;\nconst chatId = chat.id;\nconst instanceId = chat.instance_id;\nconst contactId = chat.contact_id;\n\nconst body = $('Webhook').first().json.body;\nconst data = body.data;\nconst key = data.key || {};\nconst messageId = key.id;\n\n// 1. Correção de Status (Evita erro 400 no banco)\nfunction mapStatus(status) {\n    if (!status) return 'sent';\n    const s = String(status).toUpperCase();\n    if (s === 'READ' || s === 'PLAY') return 'read';\n    if (s === 'DELIVERY_ACK') return 'delivered';\n    return 'sent';\n}\n\n// 2. Tipo de Mensagem\nfunction normalizeType(evoType) {\n    const typeMap = {\n        'conversation': 'text',\n        'extendedTextMessage': 'text',\n        'imageMessage': 'image',\n        'videoMessage': 'video',\n        'audioMessage': 'audio',\n        'documentMessage': 'document',\n        'stickerMessage': 'sticker'\n    };\n    return typeMap[evoType] || 'text';\n}\n\nconst msg = data.message || {};\nconst keys = Object.keys(msg);\nlet rawType = data.messageType || keys[0] || 'conversation';\n\n// Prioridades\nif (keys.includes('imageMessage')) rawType = 'imageMessage';\nelse if (keys.includes('videoMessage')) rawType = 'videoMessage';\nelse if (keys.includes('audioMessage')) rawType = 'audioMessage';\nelse if (keys.includes('documentMessage')) rawType = 'documentMessage';\n\nconst messageType = normalizeType(rawType);\n\n// 3. Conteúdo\nconst content = msg.conversation || \n                msg.extendedTextMessage?.text || \n                msg[rawType]?.caption || \n                '';\n\n// 4. Extração SIMPLES da URL (Sem download, sem frescura)\nlet mediaUrl = null;\nconst mediaMsg = msg[rawType];\n\nif (mediaMsg && typeof mediaMsg === 'object') {\n    // Pega a URL direta que o WhatsApp/Evolution entrega\n    mediaUrl = mediaMsg.url || null;\n}\n\nconst contextInfo = msg[rawType]?.contextInfo || data.contextInfo;\nconst quotedMessageId = contextInfo?.stanzaId || null;\n\nlet participant = key.participant || key.remoteJid;\nif (key.participantAlt) participant = key.participantAlt;\n\nreturn [{\n    json: {\n        message_id: messageId,\n        chat_id: key.remoteJid,\n        chat_table_id: chatId,\n        contact_id: contactId,\n        instance_id: instanceId,\n        content: content,\n        from_me: key.fromMe || false,\n        timestamp_msg: data.messageTimestamp ? new Date(data.messageTimestamp * 1000).toISOString() : new Date().toISOString(),\n        status: mapStatus(data.status),\n        message_type: messageType,\n        thumbnail_path: chat.url_foto_perfil,\n        // Salva a URL original direta\n        media_url: mediaUrl,\n        quoted_message_id: quotedMessageId,\n        participant: participant,\n        metadata: { rawMessage: data, webhookSource: 'realtime_simple' }\n    }\n}];"
+        "method": "POST",
+        "url": "=https://evo.zapneuronz.com.br/chat/getBase64FromMediaMessage/{{ $('Webhook').first().json.body.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {\n    \"key\": {\n      \"id\": \"{{ $('Webhook').item.json.body.data.key.id }}\"\n    }\n  },\n  \"convertToMp4\": false\n}\n",
+        "options": {}
       },
-      "id": "6abd7d87-adac-4c81-ab07-dd2bbdeb9454",
-      "name": "Normalize Message",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "66bd6b4f-1673-4a37-a11b-dd68b55c270a",
+      "name": "Download Media1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
       "position": [
-        624,
-        336
-      ]
+        2880,
+        -2144
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wDjVZ1Dbe26c2YVQ",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/messages?on_conflict=message_id,chat_id",
+        "url": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/file/{{$json.storage_path}}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Prefer",
-              "value": "resolution=merge-duplicates,return=representation"
-            }
+            {}
           ]
         },
         "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json }}",
+        "contentType": "binaryData",
+        "inputDataFieldName": "file",
         "options": {}
       },
-      "id": "c8c4b5de-e1e8-4d6e-86c4-ae3d11835311",
-      "name": "Upsert Message",
+      "id": "c6a6e300-7beb-401c-baf4-18a214b068d3",
+      "name": "Storage Supabase",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        848,
-        336
+        3232,
+        -2144
       ],
       "credentials": {
         "supabaseApi": {
-          "id": "WmRiFsat1TaOUULN",
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ VOCÊ VAI PREENCHER SÓ ESSAS 2 LINHAS USANDO O PICKER DO N8N\nconst BASE64 = $input.first().json.base64;     // <-- clique em \"Add Expression\" e selecione o campo que contém o base64\nconst MIME   = \"image/jpeg\"; // <-- se vier do payload, você troca via picker também\n\nif (!BASE64) throw new Error(\"BASE64 vazio. Preencha a variável BASE64 com o campo correto.\");\n\nconst clean = String(BASE64).includes(\"base64,\")\n  ? String(BASE64).split(\"base64,\")[1]\n  : String(BASE64);\n\nreturn [{\n  json: {\n    // ✅ você decide o path (pode montar com id da msg)\n    storage_path: `images/${Date.now()}.jpeg`,\n  },\n  binary: {\n    file: {\n      data: clean,\n      fileName: \"media.jpeg\",\n      mimeType: MIME,\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3056,
+        -2144
+      ],
+      "id": "77ca2fca-ba6f-4947-a1b7-0979a7f110b2",
+      "name": "Faz Binario"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.zapneuronz.com.br/chat/getBase64FromMediaMessage/{{ $('Webhook').first().json.body.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {\n    \"key\": {\n      \"id\": \"{{ $('Webhook').item.json.body.data.key.id }}\"\n    }\n  },\n  \"convertToMp4\": false\n}\n",
+        "options": {}
+      },
+      "id": "f3a868c3-03e7-4e19-bc72-e8777ec66f00",
+      "name": "Download Media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2880,
+        -1744
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wDjVZ1Dbe26c2YVQ",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/file/{{$json.storage_path}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "file",
+        "options": {}
+      },
+      "id": "aee85822-13aa-463c-8ba1-dc0738af4d55",
+      "name": "Storage Supabase1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3232,
+        -1744
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ VOCÊ VAI PREENCHER SÓ ESSAS 2 LINHAS USANDO O PICKER DO N8N\nconst BASE64 = $input.first().json.base64;     // <-- clique em \"Add Expression\" e selecione o campo que contém o base64\nconst MIME   = $input.first().json.mimetype; // <-- se vier do payload, você troca via picker também\n\nif (!BASE64) throw new Error(\"BASE64 vazio. Preencha a variável BASE64 com o campo correto.\");\n\nconst clean = String(BASE64).includes(\"base64,\")\n  ? String(BASE64).split(\"base64,\")[1]\n  : String(BASE64);\n\nreturn [{\n  json: {\n    // ✅ você decide o path (pode montar com id da msg)\n    storage_path: `audios/${Date.now()}.jpeg`,\n  },\n  binary: {\n    file: {\n      data: clean,\n      fileName: \"media.jpeg\",\n      mimeType: MIME,\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3056,
+        -1744
+      ],
+      "id": "f9f8ed7a-b0b0-45d5-82ff-f2e8670ec33d",
+      "name": "Faz Binario1"
+    },
+    {
+      "parameters": {
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.id }}"
+            },
+            {
+              "fieldId": "from_me",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.fromMe }}"
+            },
+            {
+              "fieldId": "participant",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.pushName }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "=audio"
+            },
+            {
+              "fieldId": "timestamp_msg",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $('Chat?').item.json.instance_id }}"
+            },
+            {
+              "fieldId": "chat_table_id",
+              "fieldValue": "={{ $('Chat?').item.json.id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
+            },
+            {
+              "fieldId": "media_url",
+              "fieldValue": "https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/"
+            },
+            {
+              "fieldId": "media_path",
+              "fieldValue": "={{ $json.Key }}"
+            },
+            {
+              "fieldId": "public_media_url",
+              "fieldValue": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/{{ $json.Key }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3408,
+        -1744
+      ],
+      "id": "bf51f3fd-57e4-49b7-925c-c4cf43e54ed5",
+      "name": "MSG AUDIO PPT",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.zapneuronz.com.br/chat/getBase64FromMediaMessage/{{ $('Webhook').first().json.body.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {\n    \"key\": {\n      \"id\": \"{{ $('Webhook').item.json.body.data.key.id }}\"\n    }\n  },\n  \"convertToMp4\": false\n}\n",
+        "options": {}
+      },
+      "id": "19399e3b-9993-484d-a8db-700c2c47af05",
+      "name": "Download Media2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2864,
+        -1360
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wDjVZ1Dbe26c2YVQ",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/file/{{$json.storage_path}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "file",
+        "options": {}
+      },
+      "id": "087bfddc-b7d9-449a-be04-dafad24b6b1b",
+      "name": "Storage Supabase2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3216,
+        -1360
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ VOCÊ VAI PREENCHER SÓ ESSAS 2 LINHAS USANDO O PICKER DO N8N\nconst BASE64 = $input.first().json.base64;     // <-- clique em \"Add Expression\" e selecione o campo que contém o base64\nconst MIME   = $input.first().json.mimetype; // <-- se vier do payload, você troca via picker também\n\nif (!BASE64) throw new Error(\"BASE64 vazio. Preencha a variável BASE64 com o campo correto.\");\n\nconst clean = String(BASE64).includes(\"base64,\")\n  ? String(BASE64).split(\"base64,\")[1]\n  : String(BASE64);\n\nreturn [{\n  json: {\n    // ✅ você decide o path (pode montar com id da msg)\n    storage_path: `docs/${Date.now()}.jpeg`,\n  },\n  binary: {\n    file: {\n      data: clean,\n      fileName: \"media.jpeg\",\n      mimeType: MIME,\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3040,
+        -1360
+      ],
+      "id": "1eca98d6-3703-4aef-ba10-5f62b193db2e",
+      "name": "Faz Binario2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.zapneuronz.com.br/chat/getBase64FromMediaMessage/{{ $('Webhook').first().json.body.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {\n    \"key\": {\n      \"id\": \"{{ $('Webhook').item.json.body.data.key.id }}\"\n    }\n  },\n  \"convertToMp4\": false\n}\n",
+        "options": {}
+      },
+      "id": "ba0985e8-43ce-4807-ba7f-7b60fe231dd7",
+      "name": "Download Media3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2864,
+        -2560
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wDjVZ1Dbe26c2YVQ",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/file/{{$json.storage_path}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "file",
+        "options": {}
+      },
+      "id": "1cb95732-8ed8-4c08-ace1-c869f0f9d0a3",
+      "name": "Storage Supabase3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3216,
+        -2560
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ VOCÊ VAI PREENCHER SÓ ESSAS 2 LINHAS USANDO O PICKER DO N8N\nconst BASE64 = $input.first().json.base64;     // <-- clique em \"Add Expression\" e selecione o campo que contém o base64\nconst MIME   = $input.first().json.mimetype; // <-- se vier do payload, você troca via picker também\n\nif (!BASE64) throw new Error(\"BASE64 vazio. Preencha a variável BASE64 com o campo correto.\");\n\nconst clean = String(BASE64).includes(\"base64,\")\n  ? String(BASE64).split(\"base64,\")[1]\n  : String(BASE64);\n\nreturn [{\n  json: {\n    // ✅ você decide o path (pode montar com id da msg)\n    storage_path: `videos/${Date.now()}.jpeg`,\n  },\n  binary: {\n    file: {\n      data: clean,\n      fileName: \"media.jpeg\",\n      mimeType: MIME,\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3040,
+        -2560
+      ],
+      "id": "f1551b9b-a613-406d-94c2-091016c39573",
+      "name": "Faz Binario3"
+    },
+    {
+      "parameters": {
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.id }}"
+            },
+            {
+              "fieldId": "from_me",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.fromMe }}"
+            },
+            {
+              "fieldId": "participant",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.pushName }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "=video"
+            },
+            {
+              "fieldId": "timestamp_msg",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $('Chat?').item.json.instance_id }}"
+            },
+            {
+              "fieldId": "chat_table_id",
+              "fieldValue": "={{ $('Chat?').item.json.id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
+            },
+            {
+              "fieldId": "media_url",
+              "fieldValue": "https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/"
+            },
+            {
+              "fieldId": "media_path",
+              "fieldValue": "={{ $json.Key }}"
+            },
+            {
+              "fieldId": "public_media_url",
+              "fieldValue": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/{{ $json.Key }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3392,
+        -2560
+      ],
+      "id": "e0809082-380a-4fc8-b290-21bd33f10e05",
+      "name": "MSG VIDEO1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "72c52f10-4bd2-4630-aa98-8d9485c3bf46",
+              "leftValue": "={{ $('Webhook').item.json.body.data.messageType }}",
+              "rightValue": "conversation",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1632,
+        -1968
+      ],
+      "id": "9b03eba2-e59b-4d7e-bb5d-4df2b0c8761f",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.id }}"
+            },
+            {
+              "fieldId": "from_me",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.fromMe }}"
+            },
+            {
+              "fieldId": "participant",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.pushName }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "=document"
+            },
+            {
+              "fieldId": "timestamp_msg",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $('Chat?').item.json.instance_id }}"
+            },
+            {
+              "fieldId": "chat_table_id",
+              "fieldValue": "={{ $('Chat?').item.json.id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
+            },
+            {
+              "fieldId": "media_url",
+              "fieldValue": "https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/"
+            },
+            {
+              "fieldId": "media_path",
+              "fieldValue": "={{ $json.Key }}"
+            },
+            {
+              "fieldId": "public_media_url",
+              "fieldValue": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/{{ $json.Key }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3392,
+        -1360
+      ],
+      "id": "411d732c-bcbd-4ea4-a7aa-7754d1f896d3",
+      "name": "MSG MEDIA DOC",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "2d837c04-a15a-465a-abc2-6e78a71c86a0",
+              "leftValue": "=",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2496,
+        112
+      ],
+      "id": "ab12a0ae-4970-4b25-89ce-90bcdcd5bc28",
+      "name": "Existe?1"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "contacts",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "phone",
+              "keyValue": "={{ $('Webhook').item.json.body.data.key.remoteJid.replace('s@whatsapp.net','') }}\n"
+            },
+            {
+              "keyName": "instance_id",
+              "keyValue": "={{ $('Pega intance ID').item.json.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2320,
+        112
+      ],
+      "id": "6e8b0ff7-f0e7-493b-adeb-b2f44c084779",
+      "name": "Contact?",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "contacts",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "phone"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2704,
+        1344
+      ],
+      "id": "f6737f95-b97d-4b7d-a9f4-d7d33b72f133",
+      "name": "Cria Contact",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "chats",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
+            },
+            {
+              "fieldId": "last_message",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "last_message_time",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "unread_count",
+              "fieldValue": "1"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $('Pega intance ID').item.json.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2896,
+        1344
+      ],
+      "id": "ae6d9738-5d59-4050-8dc8-54b8bdc1cf7b",
+      "name": "Cria Chat",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "chats",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
+            },
+            {
+              "fieldId": "last_message",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "last_message_time",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "unread_count",
+              "fieldValue": "1"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $('Pega intance ID').item.json.id }}"
+            },
+            {
+              "fieldId": "contact_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2688,
+        -352
+      ],
+      "id": "73e1539e-af0d-4da2-abfc-8032ea172959",
+      "name": "Cria Chat1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.zapneuronz.com.br/chat/findChats\n/{{ $('Webhook').first().json.body.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"where\": {\n    \"remoteJid\": \"{{ $json.chat_id }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "52ca04f5-d1c6-4df0-b468-380483eee885",
+      "name": "Unread count - Chats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1920,
+        -2512
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wDjVZ1Dbe26c2YVQ",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "chats",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.remoteJid }}"
+            },
+            {
+              "keyName": "instance_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Pega intance ID').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "last_message",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "last_message_time",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "unread_count",
+              "fieldValue": "={{ $json.unreadCount }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2096,
+        -2512
+      ],
+      "id": "c9e41ff0-78b0-4b8b-87ed-a5296cd6ce28",
+      "name": "TEM UNREAD",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $('Webhook').item.json.body.data.messageType }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "imageMessage",
+              "output": 1
+            },
+            {
+              "value2": "audioMessage",
+              "output": 2
+            },
+            {
+              "value2": "videoMessage",
+              "output": 3
+            },
+            {
+              "value2": "mediaMessage"
+            }
+          ]
+        }
+      },
+      "id": "a146d6de-91d0-42ad-8362-edb46521457d",
+      "name": "Text / Media3",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        4096,
+        -368
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.id }}"
+            },
+            {
+              "fieldId": "from_me",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.fromMe }}"
+            },
+            {
+              "fieldId": "participant",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.pushName }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "=text"
+            },
+            {
+              "fieldId": "content",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.message.conversation }}"
+            },
+            {
+              "fieldId": "timestamp_msg",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $('Chat?').item.json.instance_id }}"
+            },
+            {
+              "fieldId": "chat_table_id",
+              "fieldValue": "={{ $('Chat?').item.json.id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3392,
+        -896
+      ],
+      "id": "d14e5acd-a3df-4ba8-a0de-06d22d1f4f9e",
+      "name": "MSG TEXT3",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.id }}"
+            },
+            {
+              "fieldId": "from_me",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.fromMe }}"
+            },
+            {
+              "fieldId": "participant",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.pushName }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "=image"
+            },
+            {
+              "fieldId": "content",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.message.imageMessage.caption }}"
+            },
+            {
+              "fieldId": "timestamp_msg",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $('Chat?').item.json.instance_id }}"
+            },
+            {
+              "fieldId": "chat_table_id",
+              "fieldValue": "={{ $('Chat?').item.json.id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
+            },
+            {
+              "fieldId": "media_url",
+              "fieldValue": "https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/"
+            },
+            {
+              "fieldId": "media_path",
+              "fieldValue": "={{ $json.Key }}"
+            },
+            {
+              "fieldId": "public_media_url",
+              "fieldValue": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/{{ $json.Key }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        5056,
+        -528
+      ],
+      "id": "18cdc98c-adf7-49ea-93f3-b8ab77229efd",
+      "name": "MSG IMAGEM3",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.zapneuronz.com.br/chat/getBase64FromMediaMessage/{{ $('Webhook').first().json.body.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {\n    \"key\": {\n      \"id\": \"{{ $('Webhook').item.json.body.data.key.id }}\"\n    }\n  },\n  \"convertToMp4\": false\n}\n",
+        "options": {}
+      },
+      "id": "ba0e320d-ba14-43c9-90ee-0cbd09b3b0f9",
+      "name": "Download Media12",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4528,
+        -528
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wDjVZ1Dbe26c2YVQ",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/file/{{$json.storage_path}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "file",
+        "options": {}
+      },
+      "id": "195a3267-6b62-401b-92e6-c95d6e4794b4",
+      "name": "Storage Supabase12",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4880,
+        -528
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ VOCÊ VAI PREENCHER SÓ ESSAS 2 LINHAS USANDO O PICKER DO N8N\nconst BASE64 = $input.first().json.base64;     // <-- clique em \"Add Expression\" e selecione o campo que contém o base64\nconst MIME   = \"image/jpeg\"; // <-- se vier do payload, você troca via picker também\n\nif (!BASE64) throw new Error(\"BASE64 vazio. Preencha a variável BASE64 com o campo correto.\");\n\nconst clean = String(BASE64).includes(\"base64,\")\n  ? String(BASE64).split(\"base64,\")[1]\n  : String(BASE64);\n\nreturn [{\n  json: {\n    // ✅ você decide o path (pode montar com id da msg)\n    storage_path: `images/${Date.now()}.jpeg`,\n  },\n  binary: {\n    file: {\n      data: clean,\n      fileName: \"media.jpeg\",\n      mimeType: MIME,\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4704,
+        -528
+      ],
+      "id": "f762c020-3b0d-4d0b-bbe3-847be5077355",
+      "name": "Faz Binario12"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.zapneuronz.com.br/chat/getBase64FromMediaMessage/{{ $('Webhook').first().json.body.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {\n    \"key\": {\n      \"id\": \"{{ $('Webhook').item.json.body.data.key.id }}\"\n    }\n  },\n  \"convertToMp4\": false\n}\n",
+        "options": {}
+      },
+      "id": "e0f6833d-3370-429e-96df-485d27dbffd4",
+      "name": "Download Media13",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4528,
+        -128
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wDjVZ1Dbe26c2YVQ",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/file/{{$json.storage_path}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "file",
+        "options": {}
+      },
+      "id": "b075186f-0e71-42d5-8b50-aa88e5554cea",
+      "name": "Storage Supabase13",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4880,
+        -128
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ VOCÊ VAI PREENCHER SÓ ESSAS 2 LINHAS USANDO O PICKER DO N8N\nconst BASE64 = $input.first().json.base64;     // <-- clique em \"Add Expression\" e selecione o campo que contém o base64\nconst MIME   = $input.first().json.mimetype; // <-- se vier do payload, você troca via picker também\n\nif (!BASE64) throw new Error(\"BASE64 vazio. Preencha a variável BASE64 com o campo correto.\");\n\nconst clean = String(BASE64).includes(\"base64,\")\n  ? String(BASE64).split(\"base64,\")[1]\n  : String(BASE64);\n\nreturn [{\n  json: {\n    // ✅ você decide o path (pode montar com id da msg)\n    storage_path: `audios/${Date.now()}.jpeg`,\n  },\n  binary: {\n    file: {\n      data: clean,\n      fileName: \"media.jpeg\",\n      mimeType: MIME,\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4704,
+        -128
+      ],
+      "id": "c5628138-92d8-483b-af2c-be7a985f2fb9",
+      "name": "Faz Binario13"
+    },
+    {
+      "parameters": {
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.id }}"
+            },
+            {
+              "fieldId": "from_me",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.fromMe }}"
+            },
+            {
+              "fieldId": "participant",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.pushName }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "=audio"
+            },
+            {
+              "fieldId": "timestamp_msg",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $('Chat?').item.json.instance_id }}"
+            },
+            {
+              "fieldId": "chat_table_id",
+              "fieldValue": "={{ $('Chat?').item.json.id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
+            },
+            {
+              "fieldId": "media_url",
+              "fieldValue": "https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/"
+            },
+            {
+              "fieldId": "media_path",
+              "fieldValue": "={{ $json.Key }}"
+            },
+            {
+              "fieldId": "public_media_url",
+              "fieldValue": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/{{ $json.Key }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        5056,
+        -128
+      ],
+      "id": "0e13f720-c887-42d3-87f6-ff4d3908b7e2",
+      "name": "MSG AUDIO PPT3",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.zapneuronz.com.br/chat/getBase64FromMediaMessage/{{ $('Webhook').first().json.body.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {\n    \"key\": {\n      \"id\": \"{{ $('Webhook').item.json.body.data.key.id }}\"\n    }\n  },\n  \"convertToMp4\": false\n}\n",
+        "options": {}
+      },
+      "id": "d9ebcbda-691f-43ca-b9a1-ce5d209ccb75",
+      "name": "Download Media14",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4512,
+        256
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wDjVZ1Dbe26c2YVQ",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/file/{{$json.storage_path}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "file",
+        "options": {}
+      },
+      "id": "49b23dfb-1e89-4463-bcf5-40628c1c90db",
+      "name": "Storage Supabase14",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4864,
+        256
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ VOCÊ VAI PREENCHER SÓ ESSAS 2 LINHAS USANDO O PICKER DO N8N\nconst BASE64 = $input.first().json.base64;     // <-- clique em \"Add Expression\" e selecione o campo que contém o base64\nconst MIME   = $input.first().json.mimetype; // <-- se vier do payload, você troca via picker também\n\nif (!BASE64) throw new Error(\"BASE64 vazio. Preencha a variável BASE64 com o campo correto.\");\n\nconst clean = String(BASE64).includes(\"base64,\")\n  ? String(BASE64).split(\"base64,\")[1]\n  : String(BASE64);\n\nreturn [{\n  json: {\n    // ✅ você decide o path (pode montar com id da msg)\n    storage_path: `docs/${Date.now()}.jpeg`,\n  },\n  binary: {\n    file: {\n      data: clean,\n      fileName: \"media.jpeg\",\n      mimeType: MIME,\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4688,
+        256
+      ],
+      "id": "8eedcd51-ca84-4f78-9b32-2736426bac19",
+      "name": "Faz Binario14"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.zapneuronz.com.br/chat/getBase64FromMediaMessage/{{ $('Webhook').first().json.body.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {\n    \"key\": {\n      \"id\": \"{{ $('Webhook').item.json.body.data.key.id }}\"\n    }\n  },\n  \"convertToMp4\": false\n}\n",
+        "options": {}
+      },
+      "id": "ce096d98-3a19-4ac0-9b14-7636383b3360",
+      "name": "Download Media15",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4512,
+        -944
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wDjVZ1Dbe26c2YVQ",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/file/{{$json.storage_path}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "file",
+        "options": {}
+      },
+      "id": "15557a1b-44aa-4aff-bd22-8695e2d170cb",
+      "name": "Storage Supabase15",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4864,
+        -944
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ VOCÊ VAI PREENCHER SÓ ESSAS 2 LINHAS USANDO O PICKER DO N8N\nconst BASE64 = $input.first().json.base64;     // <-- clique em \"Add Expression\" e selecione o campo que contém o base64\nconst MIME   = $input.first().json.mimetype; // <-- se vier do payload, você troca via picker também\n\nif (!BASE64) throw new Error(\"BASE64 vazio. Preencha a variável BASE64 com o campo correto.\");\n\nconst clean = String(BASE64).includes(\"base64,\")\n  ? String(BASE64).split(\"base64,\")[1]\n  : String(BASE64);\n\nreturn [{\n  json: {\n    // ✅ você decide o path (pode montar com id da msg)\n    storage_path: `videos/${Date.now()}.jpeg`,\n  },\n  binary: {\n    file: {\n      data: clean,\n      fileName: \"media.jpeg\",\n      mimeType: MIME,\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4688,
+        -944
+      ],
+      "id": "1b7af7d5-b16c-4490-9026-77ca2942ab0a",
+      "name": "Faz Binario15"
+    },
+    {
+      "parameters": {
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.id }}"
+            },
+            {
+              "fieldId": "from_me",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.fromMe }}"
+            },
+            {
+              "fieldId": "participant",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.pushName }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "=video"
+            },
+            {
+              "fieldId": "timestamp_msg",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $('Chat?').item.json.instance_id }}"
+            },
+            {
+              "fieldId": "chat_table_id",
+              "fieldValue": "={{ $('Chat?').item.json.id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
+            },
+            {
+              "fieldId": "media_url",
+              "fieldValue": "https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/"
+            },
+            {
+              "fieldId": "media_path",
+              "fieldValue": "={{ $json.Key }}"
+            },
+            {
+              "fieldId": "public_media_url",
+              "fieldValue": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/{{ $json.Key }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        5040,
+        -944
+      ],
+      "id": "4de1ba7c-64e1-4572-8d94-75567dc5b033",
+      "name": "MSG VIDEO3",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "72c52f10-4bd2-4630-aa98-8d9485c3bf46",
+              "leftValue": "={{ $('Webhook').item.json.body.data.messageType }}",
+              "rightValue": "conversation",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3280,
+        -352
+      ],
+      "id": "08469dc4-a120-4b5a-9af4-6ba7101ead06",
+      "name": "If8"
+    },
+    {
+      "parameters": {
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.id }}"
+            },
+            {
+              "fieldId": "from_me",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.fromMe }}"
+            },
+            {
+              "fieldId": "participant",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.pushName }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "=document"
+            },
+            {
+              "fieldId": "timestamp_msg",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $('Chat?').item.json.instance_id }}"
+            },
+            {
+              "fieldId": "chat_table_id",
+              "fieldValue": "={{ $('Chat?').item.json.id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
+            },
+            {
+              "fieldId": "media_url",
+              "fieldValue": "https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/"
+            },
+            {
+              "fieldId": "media_path",
+              "fieldValue": "={{ $json.Key }}"
+            },
+            {
+              "fieldId": "public_media_url",
+              "fieldValue": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/{{ $json.Key }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        5040,
+        256
+      ],
+      "id": "3182fe0c-fda5-4127-83eb-7b8cf1cda069",
+      "name": "MSG MEDIA DOC3",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $('Webhook').item.json.body.data.messageType }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "imageMessage",
+              "output": 1
+            },
+            {
+              "value2": "audioMessage",
+              "output": 2
+            },
+            {
+              "value2": "videoMessage",
+              "output": 3
+            },
+            {
+              "value2": "mediaMessage"
+            }
+          ]
+        }
+      },
+      "id": "7ed294ee-5376-4d9b-bfe3-4748c8ca84ff",
+      "name": "Text / Media4",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        4128,
+        1328
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.id }}"
+            },
+            {
+              "fieldId": "from_me",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.fromMe }}"
+            },
+            {
+              "fieldId": "participant",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.pushName }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "=text"
+            },
+            {
+              "fieldId": "content",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.message.conversation }}"
+            },
+            {
+              "fieldId": "timestamp_msg",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $('Chat?').item.json.instance_id }}"
+            },
+            {
+              "fieldId": "chat_table_id",
+              "fieldValue": "={{ $('Chat?').item.json.id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3424,
+        800
+      ],
+      "id": "ae002089-3901-4564-969e-87307b3cde7b",
+      "name": "MSG TEXT4",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.id }}"
+            },
+            {
+              "fieldId": "from_me",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.fromMe }}"
+            },
+            {
+              "fieldId": "participant",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.pushName }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "=image"
+            },
+            {
+              "fieldId": "content",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.message.imageMessage.caption }}"
+            },
+            {
+              "fieldId": "timestamp_msg",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $('Chat?').item.json.instance_id }}"
+            },
+            {
+              "fieldId": "chat_table_id",
+              "fieldValue": "={{ $('Chat?').item.json.id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
+            },
+            {
+              "fieldId": "media_url",
+              "fieldValue": "https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/"
+            },
+            {
+              "fieldId": "media_path",
+              "fieldValue": "={{ $json.Key }}"
+            },
+            {
+              "fieldId": "public_media_url",
+              "fieldValue": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/{{ $json.Key }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        5088,
+        1168
+      ],
+      "id": "7ac399a6-2d89-493e-8915-3a994e38c918",
+      "name": "MSG IMAGEM4",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.zapneuronz.com.br/chat/getBase64FromMediaMessage/{{ $('Webhook').first().json.body.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {\n    \"key\": {\n      \"id\": \"{{ $('Webhook').item.json.body.data.key.id }}\"\n    }\n  },\n  \"convertToMp4\": false\n}\n",
+        "options": {}
+      },
+      "id": "e41e8f02-4293-41c7-b5af-afc38d08fd15",
+      "name": "Download Media16",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4560,
+        1168
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wDjVZ1Dbe26c2YVQ",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/file/{{$json.storage_path}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "file",
+        "options": {}
+      },
+      "id": "fc34eec7-26e4-4f6c-af4f-3e4df0110304",
+      "name": "Storage Supabase16",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4912,
+        1168
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ VOCÊ VAI PREENCHER SÓ ESSAS 2 LINHAS USANDO O PICKER DO N8N\nconst BASE64 = $input.first().json.base64;     // <-- clique em \"Add Expression\" e selecione o campo que contém o base64\nconst MIME   = \"image/jpeg\"; // <-- se vier do payload, você troca via picker também\n\nif (!BASE64) throw new Error(\"BASE64 vazio. Preencha a variável BASE64 com o campo correto.\");\n\nconst clean = String(BASE64).includes(\"base64,\")\n  ? String(BASE64).split(\"base64,\")[1]\n  : String(BASE64);\n\nreturn [{\n  json: {\n    // ✅ você decide o path (pode montar com id da msg)\n    storage_path: `images/${Date.now()}.jpeg`,\n  },\n  binary: {\n    file: {\n      data: clean,\n      fileName: \"media.jpeg\",\n      mimeType: MIME,\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4736,
+        1168
+      ],
+      "id": "6139b3b8-ccde-47fc-a516-740b5a96de67",
+      "name": "Faz Binario16"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.zapneuronz.com.br/chat/getBase64FromMediaMessage/{{ $('Webhook').first().json.body.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {\n    \"key\": {\n      \"id\": \"{{ $('Webhook').item.json.body.data.key.id }}\"\n    }\n  },\n  \"convertToMp4\": false\n}\n",
+        "options": {}
+      },
+      "id": "ed8ac0dd-6b2f-4035-af10-21a7626f029f",
+      "name": "Download Media17",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4560,
+        1568
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wDjVZ1Dbe26c2YVQ",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/file/{{$json.storage_path}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "file",
+        "options": {}
+      },
+      "id": "d8f5c50d-bbba-4e81-ae1c-0bb0b24c5aff",
+      "name": "Storage Supabase17",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4912,
+        1568
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ VOCÊ VAI PREENCHER SÓ ESSAS 2 LINHAS USANDO O PICKER DO N8N\nconst BASE64 = $input.first().json.base64;     // <-- clique em \"Add Expression\" e selecione o campo que contém o base64\nconst MIME   = $input.first().json.mimetype; // <-- se vier do payload, você troca via picker também\n\nif (!BASE64) throw new Error(\"BASE64 vazio. Preencha a variável BASE64 com o campo correto.\");\n\nconst clean = String(BASE64).includes(\"base64,\")\n  ? String(BASE64).split(\"base64,\")[1]\n  : String(BASE64);\n\nreturn [{\n  json: {\n    // ✅ você decide o path (pode montar com id da msg)\n    storage_path: `audios/${Date.now()}.jpeg`,\n  },\n  binary: {\n    file: {\n      data: clean,\n      fileName: \"media.jpeg\",\n      mimeType: MIME,\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4736,
+        1568
+      ],
+      "id": "9230a877-452b-487d-a691-2f147310ce9b",
+      "name": "Faz Binario17"
+    },
+    {
+      "parameters": {
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.id }}"
+            },
+            {
+              "fieldId": "from_me",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.fromMe }}"
+            },
+            {
+              "fieldId": "participant",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.pushName }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "=audio"
+            },
+            {
+              "fieldId": "timestamp_msg",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $('Chat?').item.json.instance_id }}"
+            },
+            {
+              "fieldId": "chat_table_id",
+              "fieldValue": "={{ $('Chat?').item.json.id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
+            },
+            {
+              "fieldId": "media_url",
+              "fieldValue": "https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/"
+            },
+            {
+              "fieldId": "media_path",
+              "fieldValue": "={{ $json.Key }}"
+            },
+            {
+              "fieldId": "public_media_url",
+              "fieldValue": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/{{ $json.Key }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        5088,
+        1568
+      ],
+      "id": "751e0229-12bc-448e-b7f2-8c75923eb8f3",
+      "name": "MSG AUDIO PPT4",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.zapneuronz.com.br/chat/getBase64FromMediaMessage/{{ $('Webhook').first().json.body.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {\n    \"key\": {\n      \"id\": \"{{ $('Webhook').item.json.body.data.key.id }}\"\n    }\n  },\n  \"convertToMp4\": false\n}\n",
+        "options": {}
+      },
+      "id": "fc55c821-17ae-4b14-a944-365cd61937cd",
+      "name": "Download Media18",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4544,
+        1952
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wDjVZ1Dbe26c2YVQ",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/file/{{$json.storage_path}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "file",
+        "options": {}
+      },
+      "id": "5da63c34-a8f3-46a9-a577-3f7341f78a77",
+      "name": "Storage Supabase18",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4896,
+        1952
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ VOCÊ VAI PREENCHER SÓ ESSAS 2 LINHAS USANDO O PICKER DO N8N\nconst BASE64 = $input.first().json.base64;     // <-- clique em \"Add Expression\" e selecione o campo que contém o base64\nconst MIME   = $input.first().json.mimetype; // <-- se vier do payload, você troca via picker também\n\nif (!BASE64) throw new Error(\"BASE64 vazio. Preencha a variável BASE64 com o campo correto.\");\n\nconst clean = String(BASE64).includes(\"base64,\")\n  ? String(BASE64).split(\"base64,\")[1]\n  : String(BASE64);\n\nreturn [{\n  json: {\n    // ✅ você decide o path (pode montar com id da msg)\n    storage_path: `docs/${Date.now()}.jpeg`,\n  },\n  binary: {\n    file: {\n      data: clean,\n      fileName: \"media.jpeg\",\n      mimeType: MIME,\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4720,
+        1952
+      ],
+      "id": "0fa93966-acb4-4fb3-95a2-371d96575411",
+      "name": "Faz Binario18"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.zapneuronz.com.br/chat/getBase64FromMediaMessage/{{ $('Webhook').first().json.body.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {\n    \"key\": {\n      \"id\": \"{{ $('Webhook').item.json.body.data.key.id }}\"\n    }\n  },\n  \"convertToMp4\": false\n}\n",
+        "options": {}
+      },
+      "id": "9efcbd40-fb31-4a16-ba0e-2f313bf182d9",
+      "name": "Download Media19",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4544,
+        736
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wDjVZ1Dbe26c2YVQ",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/file/{{$json.storage_path}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "file",
+        "options": {}
+      },
+      "id": "b6447fc5-e707-41b4-a641-66b01d624e4a",
+      "name": "Storage Supabase19",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4896,
+        736
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ VOCÊ VAI PREENCHER SÓ ESSAS 2 LINHAS USANDO O PICKER DO N8N\nconst BASE64 = $input.first().json.base64;     // <-- clique em \"Add Expression\" e selecione o campo que contém o base64\nconst MIME   = $input.first().json.mimetype; // <-- se vier do payload, você troca via picker também\n\nif (!BASE64) throw new Error(\"BASE64 vazio. Preencha a variável BASE64 com o campo correto.\");\n\nconst clean = String(BASE64).includes(\"base64,\")\n  ? String(BASE64).split(\"base64,\")[1]\n  : String(BASE64);\n\nreturn [{\n  json: {\n    // ✅ você decide o path (pode montar com id da msg)\n    storage_path: `videos/${Date.now()}.jpeg`,\n  },\n  binary: {\n    file: {\n      data: clean,\n      fileName: \"media.jpeg\",\n      mimeType: MIME,\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4720,
+        736
+      ],
+      "id": "a09ef5ed-7b80-43ca-88f4-dcd973524be4",
+      "name": "Faz Binario19"
+    },
+    {
+      "parameters": {
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.id }}"
+            },
+            {
+              "fieldId": "from_me",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.fromMe }}"
+            },
+            {
+              "fieldId": "participant",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.pushName }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "=video"
+            },
+            {
+              "fieldId": "timestamp_msg",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $('Chat?').item.json.instance_id }}"
+            },
+            {
+              "fieldId": "chat_table_id",
+              "fieldValue": "={{ $('Chat?').item.json.id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
+            },
+            {
+              "fieldId": "media_url",
+              "fieldValue": "https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/"
+            },
+            {
+              "fieldId": "media_path",
+              "fieldValue": "={{ $json.Key }}"
+            },
+            {
+              "fieldId": "public_media_url",
+              "fieldValue": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/{{ $json.Key }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        5072,
+        736
+      ],
+      "id": "c073e7c5-c243-45c0-8d0c-db3c4ca265d1",
+      "name": "MSG VIDEO",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "72c52f10-4bd2-4630-aa98-8d9485c3bf46",
+              "leftValue": "={{ $('Webhook').item.json.body.data.messageType }}",
+              "rightValue": "conversation",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3312,
+        1344
+      ],
+      "id": "40759a16-0161-485f-a8d5-c453d6bc9c31",
+      "name": "If14"
+    },
+    {
+      "parameters": {
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.id }}"
+            },
+            {
+              "fieldId": "from_me",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.fromMe }}"
+            },
+            {
+              "fieldId": "participant",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.pushName }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "=document"
+            },
+            {
+              "fieldId": "timestamp_msg",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "metadata",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $('Chat?').item.json.instance_id }}"
+            },
+            {
+              "fieldId": "chat_table_id",
+              "fieldValue": "={{ $('Chat?').item.json.id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.data.key.remoteJid }}"
+            },
+            {
+              "fieldId": "media_url",
+              "fieldValue": "https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/"
+            },
+            {
+              "fieldId": "media_path",
+              "fieldValue": "={{ $json.Key }}"
+            },
+            {
+              "fieldId": "public_media_url",
+              "fieldValue": "=https://agsvbhzvlwygpnxygtnt.supabase.co/storage/v1/object/public/{{ $json.Key }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        5072,
+        1952
+      ],
+      "id": "7d93ffaf-441c-48e8-a40d-4da98ec12b71",
+      "name": "MSG MEDIA DOC4",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "e83b88ba-657f-4f41-a1c1-41a2da10f20b"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        928,
+        3264
+      ],
+      "id": "eb160c7b-0bfe-40c2-8198-eebd55285440",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "instances",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "evolution_instance_id",
+              "keyValue": "={{ $('Webhook').item.json.body.data.instanceId }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        880,
+        96
+      ],
+      "id": "70ffd3a3-e851-4d18-b592-41e5321cbb94",
+      "name": "Pega intance ID",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.zapneuronz.com.br/chat/findChats\n/{{ $('Webhook').first().json.body.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"where\": {\n    \"remoteJid\": \"{{ $json.chat_id }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "b230027d-af77-4875-9930-8cd87b84ebaf",
+      "name": "Unread count - Chats1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3568,
+        -2560
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wDjVZ1Dbe26c2YVQ",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "chats",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.remoteJid }}"
+            },
+            {
+              "keyName": "instance_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Pega intance ID').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "last_message",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "last_message_time",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "unread_count",
+              "fieldValue": "={{ $json.unreadCount }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3744,
+        -2560
+      ],
+      "id": "2a620601-bd4d-47ad-91da-cf5301ba8cd3",
+      "name": "TEM UNREAD1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.zapneuronz.com.br/chat/findChats\n/{{ $('Webhook').first().json.body.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"where\": {\n    \"remoteJid\": \"{{ $json.chat_id }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "3ea885b9-873b-4d65-a9c9-07b8c9f4acfa",
+      "name": "Unread count - Chats2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3600,
+        -2144
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wDjVZ1Dbe26c2YVQ",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "chats",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.remoteJid }}"
+            },
+            {
+              "keyName": "instance_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Pega intance ID').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "last_message",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "last_message_time",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "unread_count",
+              "fieldValue": "={{ $json.unreadCount }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3792,
+        -2144
+      ],
+      "id": "524adc4a-c3a4-4821-a3bc-c76e4957b942",
+      "name": "TEM UNREAD2",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.zapneuronz.com.br/chat/findChats\n/{{ $('Webhook').first().json.body.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"where\": {\n    \"remoteJid\": \"{{ $json.chat_id }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "55baea36-124e-4787-80ce-4a7aa4bcbdfb",
+      "name": "Unread count - Chats3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3584,
+        -1744
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wDjVZ1Dbe26c2YVQ",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "chats",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.remoteJid }}"
+            },
+            {
+              "keyName": "instance_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Pega intance ID').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "last_message",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "last_message_time",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "unread_count",
+              "fieldValue": "={{ $json.unreadCount }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3776,
+        -1744
+      ],
+      "id": "827fab86-983a-4d20-8765-c88946f52927",
+      "name": "TEM UNREAD3",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evo.zapneuronz.com.br/chat/findChats\n/{{ $('Webhook').first().json.body.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"where\": {\n    \"remoteJid\": \"{{ $json.chat_id }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "5fbaeee9-f5bd-4f0c-a799-641cb94b7473",
+      "name": "Unread count - Chats4",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3568,
+        -1360
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wDjVZ1Dbe26c2YVQ",
+          "name": "Header Auth account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "chats",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.remoteJid }}"
+            },
+            {
+              "keyName": "instance_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Pega intance ID').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "last_message",
+              "fieldValue": "={{ $('Webhook').item.json.body.data }}"
+            },
+            {
+              "fieldId": "last_message_time",
+              "fieldValue": "={{ $('Webhook').item.json.body.date_time }}"
+            },
+            {
+              "fieldId": "unread_count",
+              "fieldValue": "={{ $json.unreadCount }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3760,
+        -1360
+      ],
+      "id": "df3a918a-c349-45d1-ae68-caaafd641163",
+      "name": "TEM UNREAD4",
+      "credentials": {
+        "supabaseApi": {
+          "id": "5giRdkHvRJY0ru7a",
           "name": "Supabase account"
         }
       }
@@ -225,73 +2888,818 @@
       "main": [
         [
           {
-            "node": "Get Instance UUID",
+            "node": "Pega intance ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [],
+        [
+          {
+            "node": "Switch",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Instance UUID": {
+    "Existe?": {
       "main": [
         [
           {
-            "node": "Normalize Contact",
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Contact?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize Contact": {
+    "Chat?": {
       "main": [
         [
           {
-            "node": "Upsert Contact",
+            "node": "Existe?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Upsert Contact": {
+    "Text / Media": {
       "main": [
         [
           {
-            "node": "Normalize Chat",
+            "node": "Download Media3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Media1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Media",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Media2",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize Chat": {
+    "MSG TEXT": {
       "main": [
         [
           {
-            "node": "Upsert Chat",
+            "node": "Unread count - Chats",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Upsert Chat": {
+    "MSG IMAGEM": {
       "main": [
         [
           {
-            "node": "Normalize Message",
+            "node": "Unread count - Chats2",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize Message": {
+    "Download Media1": {
       "main": [
         [
           {
-            "node": "Upsert Message",
+            "node": "Faz Binario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Storage Supabase": {
+      "main": [
+        [
+          {
+            "node": "MSG IMAGEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Faz Binario": {
+      "main": [
+        [
+          {
+            "node": "Storage Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Media": {
+      "main": [
+        [
+          {
+            "node": "Faz Binario1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Storage Supabase1": {
+      "main": [
+        [
+          {
+            "node": "MSG AUDIO PPT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Faz Binario1": {
+      "main": [
+        [
+          {
+            "node": "Storage Supabase1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MSG AUDIO PPT": {
+      "main": [
+        [
+          {
+            "node": "Unread count - Chats3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Media2": {
+      "main": [
+        [
+          {
+            "node": "Faz Binario2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Storage Supabase2": {
+      "main": [
+        [
+          {
+            "node": "MSG MEDIA DOC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Faz Binario2": {
+      "main": [
+        [
+          {
+            "node": "Storage Supabase2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Media3": {
+      "main": [
+        [
+          {
+            "node": "Faz Binario3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Storage Supabase3": {
+      "main": [
+        [
+          {
+            "node": "MSG VIDEO1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Faz Binario3": {
+      "main": [
+        [
+          {
+            "node": "Storage Supabase3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MSG VIDEO1": {
+      "main": [
+        [
+          {
+            "node": "Unread count - Chats1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "MSG TEXT",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Text / Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MSG MEDIA DOC": {
+      "main": [
+        [
+          {
+            "node": "Unread count - Chats4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Existe?1": {
+      "main": [
+        [
+          {
+            "node": "Cria Chat1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cria Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contact?": {
+      "main": [
+        [
+          {
+            "node": "Existe?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cria Contact": {
+      "main": [
+        [
+          {
+            "node": "Cria Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cria Chat": {
+      "main": [
+        [
+          {
+            "node": "If14",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cria Chat1": {
+      "main": [
+        [
+          {
+            "node": "If8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unread count - Chats": {
+      "main": [
+        [
+          {
+            "node": "TEM UNREAD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEM UNREAD": {
+      "main": [
+        []
+      ]
+    },
+    "Text / Media3": {
+      "main": [
+        [
+          {
+            "node": "Download Media15",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Media12",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Media13",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Media14",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MSG IMAGEM3": {
+      "main": [
+        []
+      ]
+    },
+    "Download Media12": {
+      "main": [
+        [
+          {
+            "node": "Faz Binario12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Storage Supabase12": {
+      "main": [
+        [
+          {
+            "node": "MSG IMAGEM3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Faz Binario12": {
+      "main": [
+        [
+          {
+            "node": "Storage Supabase12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Media13": {
+      "main": [
+        [
+          {
+            "node": "Faz Binario13",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Storage Supabase13": {
+      "main": [
+        [
+          {
+            "node": "MSG AUDIO PPT3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Faz Binario13": {
+      "main": [
+        [
+          {
+            "node": "Storage Supabase13",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MSG AUDIO PPT3": {
+      "main": [
+        []
+      ]
+    },
+    "Download Media14": {
+      "main": [
+        [
+          {
+            "node": "Faz Binario14",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Storage Supabase14": {
+      "main": [
+        [
+          {
+            "node": "MSG MEDIA DOC3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Faz Binario14": {
+      "main": [
+        [
+          {
+            "node": "Storage Supabase14",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Media15": {
+      "main": [
+        [
+          {
+            "node": "Faz Binario15",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Storage Supabase15": {
+      "main": [
+        [
+          {
+            "node": "MSG VIDEO3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Faz Binario15": {
+      "main": [
+        [
+          {
+            "node": "Storage Supabase15",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MSG VIDEO3": {
+      "main": [
+        []
+      ]
+    },
+    "If8": {
+      "main": [
+        [
+          {
+            "node": "MSG TEXT3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Text / Media3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MSG MEDIA DOC3": {
+      "main": [
+        []
+      ]
+    },
+    "Text / Media4": {
+      "main": [
+        [
+          {
+            "node": "Download Media19",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Media16",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Media17",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Media18",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MSG IMAGEM4": {
+      "main": [
+        []
+      ]
+    },
+    "Download Media16": {
+      "main": [
+        [
+          {
+            "node": "Faz Binario16",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Storage Supabase16": {
+      "main": [
+        [
+          {
+            "node": "MSG IMAGEM4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Faz Binario16": {
+      "main": [
+        [
+          {
+            "node": "Storage Supabase16",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Media17": {
+      "main": [
+        [
+          {
+            "node": "Faz Binario17",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Storage Supabase17": {
+      "main": [
+        [
+          {
+            "node": "MSG AUDIO PPT4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Faz Binario17": {
+      "main": [
+        [
+          {
+            "node": "Storage Supabase17",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MSG AUDIO PPT4": {
+      "main": [
+        []
+      ]
+    },
+    "Download Media18": {
+      "main": [
+        [
+          {
+            "node": "Faz Binario18",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Storage Supabase18": {
+      "main": [
+        [
+          {
+            "node": "MSG MEDIA DOC4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Faz Binario18": {
+      "main": [
+        [
+          {
+            "node": "Storage Supabase18",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Media19": {
+      "main": [
+        [
+          {
+            "node": "Faz Binario19",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Storage Supabase19": {
+      "main": [
+        [
+          {
+            "node": "MSG VIDEO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Faz Binario19": {
+      "main": [
+        [
+          {
+            "node": "Storage Supabase19",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MSG VIDEO": {
+      "main": [
+        []
+      ]
+    },
+    "If14": {
+      "main": [
+        [
+          {
+            "node": "MSG TEXT4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Text / Media4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MSG MEDIA DOC4": {
+      "main": [
+        []
+      ]
+    },
+    "Pega intance ID": {
+      "main": [
+        [
+          {
+            "node": "Chat?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unread count - Chats1": {
+      "main": [
+        [
+          {
+            "node": "TEM UNREAD1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unread count - Chats2": {
+      "main": [
+        [
+          {
+            "node": "TEM UNREAD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unread count - Chats3": {
+      "main": [
+        [
+          {
+            "node": "TEM UNREAD3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unread count - Chats4": {
+      "main": [
+        [
+          {
+            "node": "TEM UNREAD4",
             "type": "main",
             "index": 0
           }
@@ -301,6 +3709,7 @@
   },
   "pinData": {},
   "meta": {
-    "instanceId": "09efd7a3e003e016bbd843c1d3a4510babc9cd034508c173e66f4175f21ae569"
+    "templateCredsSetupCompleted": true,
+    "instanceId": "028b54764a5e82c8feecad5f0f0b75a6ce3b8ee71394c70dfbaeff0ffd685c7c"
   }
 }
